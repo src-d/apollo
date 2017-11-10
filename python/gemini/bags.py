@@ -5,14 +5,9 @@ import sys
 from uuid import uuid4
 
 from ast2vec.repo2 import wmhash
-from ast2vec.repo2.base import Repo2FinalizerBase
+from ast2vec.repo2.base import UastExtractor, Collector
 from pyspark.sql import SparkSession
 from sourced.engine import Engine
-
-
-class CassandraFinalizer(Repo2FinalizerBase):
-    def __call__(self, processed):
-        pass
 
 
 def source2bags(args):
@@ -35,15 +30,18 @@ def source2bags(args):
     engine = Engine(session, args.repositories)
     log.info("docfreq phase")
     extractors = [wmhash.__extractors__[s](args.min_docfreq) for s in args.feature]
-    repo2docfreq = wmhash.Repo2DocFreq(
-        engine, languages=[args.language], extractors=extractors)
+    pipeline = UastExtractor(engine, languages=[args.language])
+    repo2docfreq = wmhash.Repo2DocFreq(extractors)
+    pipeline.link(repo2docfreq)
     try:
-        repo2docfreq.process_files()
+        pipeline.execute()
     except pickle.PicklingError as e:
         if e.__cause__ is not None and len(e.__cause__.args) == 2:
             for obj in e.__cause__.args[1]:
                 print(obj, file=sys.stderr)
                 print(file=sys.stderr)
         raise e from None
-    for ex in extractors:
-        print(ex.ndocs)
+    log.info("bag phase")
+    pipeline.unlink(repo2docfreq)
+    pipeline.link(wmhash.Repo2WeightedSet(extractors)).link(wmhash.BagsBatcher(extractors))
+    print(pipeline.execute())
