@@ -5,6 +5,7 @@ import sys
 from modelforge.logs import setup_logging
 
 from gemini.bags import source2bags
+from gemini.warmup import warmup
 
 
 def get_parser() -> argparse.ArgumentParser:
@@ -18,6 +19,18 @@ def get_parser() -> argparse.ArgumentParser:
                         choices=logging._nameToLevel,
                         help="Logging verbosity.")
 
+    def add_engine_args(my_parser):
+        my_parser.add_argument(
+            "-s", "--spark", default="local[*]", help="Spark's master address.")
+        my_parser.add_argument(
+            "--config", nargs="+", default=[], help="Spark configuration (key=value).")
+        my_parser.add_argument(
+            "--bblfsh", default="localhost", help="Babelfish server's address.")
+        my_parser.add_argument(
+            "--engine", default="0.1.6", help="source{d} engine version.")
+        my_parser.add_argument(
+            "--spark-local-dir", default="/tmp/spark", help="Spark local directory.")
+
     subparsers = parser.add_subparsers(help="Commands", dest="command")
     source2bags_parser = subparsers.add_parser(
         "bags", help="Convert source code to weighted sets.")
@@ -25,8 +38,6 @@ def get_parser() -> argparse.ArgumentParser:
     source2bags_parser.add_argument(
         "-r", "--repositories", required=True,
         help="The path to the repositories.")
-    source2bags_parser.add_argument(
-        "-s", "--spark", default="local[*]", help="Spark's master address.")
     source2bags_parser.add_argument(
         "--vocabulary-size", default=10000000, type=int,
         help="The maximum vocabulary size.")
@@ -39,14 +50,13 @@ def get_parser() -> argparse.ArgumentParser:
     source2bags_parser.add_argument(
         "-l", "--language", choices=("Java", "Python"),
         help="The programming language to analyse.")
-    source2bags_parser.add_argument(
-        "--config", nargs="+", default=[], help="Spark configuration (key=value).")
-    source2bags_parser.add_argument(
-        "--bblfsh", default="localhost", help="Babelfish server's address.")
-    source2bags_parser.add_argument(
-        "--engine", default="0.1.6", help="source{d} engine version.")
-    source2bags_parser.add_argument(
-        "--spark-local-dir", default="/tmp/spark", help="Spark local directory.")
+    add_engine_args(source2bags_parser)
+
+    warmup_parser = subparsers.add_parser(
+        "warmup", help="Initialize source{d} engine.")
+    warmup_parser.set_defaults(handler=warmup)
+    add_engine_args(warmup_parser)
+
     return parser
 
 
