@@ -23,6 +23,7 @@ ADD bundle/ast2vec/ /packages/ast2vec/
 ADD gemini/ /packages/gemini/
 
 ENV PYTHONPATH /packages/gemini:/packages/ast2vec:/packages/engine:/spark/python
+ENV PYSPARK_PYTHON /usr/bin/python3
 WORKDIR /packages
 
 RUN python3 -m gemini warmup -s 'local[*]'

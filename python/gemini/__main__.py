@@ -27,7 +27,7 @@ def get_parser() -> argparse.ArgumentParser:
         my_parser.add_argument(
             "--bblfsh", default="localhost", help="Babelfish server's address.")
         my_parser.add_argument(
-            "--engine", default="0.1.6", help="source{d} engine version.")
+            "--engine", default="0.1.7", help="source{d} engine version.")
         my_parser.add_argument(
             "--spark-local-dir", default="/tmp/spark", help="Spark local directory.")
 
@@ -50,6 +50,8 @@ def get_parser() -> argparse.ArgumentParser:
     source2bags_parser.add_argument(
         "-l", "--language", choices=("Java", "Python"),
         help="The programming language to analyse.")
+    source2bags_parser.add_argument(
+        "--persist", default=None, help="Persistence type (StorageClass.*).")
     add_engine_args(source2bags_parser)
 
     warmup_parser = subparsers.add_parser(
