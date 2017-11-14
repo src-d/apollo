@@ -39,6 +39,9 @@ def get_parser() -> argparse.ArgumentParser:
         "-r", "--repositories", required=True,
         help="The path to the repositories.")
     source2bags_parser.add_argument(
+        "-o", "--output", required=True,
+        help="The path to the Parquet files with bag batches.")
+    source2bags_parser.add_argument(
         "--vocabulary-size", default=10000000, type=int,
         help="The maximum vocabulary size.")
     source2bags_parser.add_argument(

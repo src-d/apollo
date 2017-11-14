@@ -5,8 +5,7 @@ FROM ubuntu:16.04
 ADD bundle/engine/python /packages/engine/
 ADD bundle/spark /spark/
 
-RUN rm -rf package/ast2vec/tests && \
-    apt-get update && \
+RUN apt-get update && \
     apt-get install -y --no-install-suggests --no-install-recommends \
         ca-certificates locales git python3 python3-dev libxml2 libxml2-dev \
         libonig2 make gcc curl openjdk-8-jre && \

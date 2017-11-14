@@ -42,7 +42,7 @@ def source2bags(args):
     if args.persist is not None:
         bags = bags.link(Cacher(args.persist))
     batcher = wmhash.BagsBatcher(extractors)
-    bags.link(batcher).link(wmhash.BagsBatchSaver("hashes"))
+    bags.link(batcher).link(wmhash.BagsBatchSaver(args.output))
     pipeline.execute()
     # bags.unlink(batcher)
     #bags.link(CassandraSaver("gemini")).execute()
