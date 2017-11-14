@@ -14,15 +14,15 @@ RUN apt-get update && \
     locale-gen en_US.UTF-8
 
 # sudo mount -o bind ... bundle/*
-ADD bundle/engine/python /packages/engine/
 ADD bundle/spark /spark/
-ADD bundle/ast2vec/ /packages/ast2vec/
+ADD bundle/engine/python/sourced/engine/ /packages/sourced/engine/
+ADD bundle/ml/sourced/ml/ /packages/sourced/ml/
 ADD gemini/ /packages/gemini/
 
-ENV PYTHONPATH /packages/gemini:/packages/ast2vec:/packages/engine:/spark/python
+ENV PYTHONPATH /packages/gemini:/packages/sourced:/spark/python
 ENV PYSPARK_PYTHON /usr/bin/python3
 WORKDIR /packages
 
-RUN python3 -m gemini warmup -s 'local[*]'
+RUN touch /packages/sourced/__init__.py && python3 -m gemini warmup -s 'local[*]'
 
 ENTRYPOINT ["python3", "-m", "gemini"]

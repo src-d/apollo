@@ -2,9 +2,9 @@ import logging
 import os
 from uuid import uuid4
 
-from ast2vec.engine import create_engine
-from ast2vec.repo2 import wmhash
-from ast2vec.repo2.base import UastExtractor, Transformer, Cacher, UastDeserializer
+from sourced.ml.engine import create_engine
+from sourced.ml.repo2 import wmhash
+from sourced.ml.repo2.base import UastExtractor, Transformer, Cacher, UastDeserializer
 from pyspark.sql.types import Row
 
 
