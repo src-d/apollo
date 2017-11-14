@@ -1,10 +1,5 @@
 FROM ubuntu:16.04
 
-# sudo mount -o bind
-
-ADD bundle/engine/python /packages/engine/
-ADD bundle/spark /spark/
-
 RUN apt-get update && \
     apt-get install -y --no-install-suggests --no-install-recommends \
         ca-certificates locales git python3 python3-dev libxml2 libxml2-dev \
@@ -18,6 +13,9 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     locale-gen en_US.UTF-8
 
+# sudo mount -o bind ... bundle/*
+ADD bundle/engine/python /packages/engine/
+ADD bundle/spark /spark/
 ADD bundle/ast2vec/ /packages/ast2vec/
 ADD gemini/ /packages/gemini/
 

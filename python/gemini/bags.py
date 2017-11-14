@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from ast2vec.engine import create_engine
 from ast2vec.repo2 import wmhash
-from ast2vec.repo2.base import UastExtractor, Transformer, Cacher
+from ast2vec.repo2.base import UastExtractor, Transformer, Cacher, UastDeserializer
 from pyspark.sql.types import Row
 
 
@@ -33,6 +33,7 @@ def source2bags(args):
         uasts = pipeline.link(Cacher(args.persist))
     else:
         uasts = pipeline
+    uasts = uasts.link(UastDeserializer())
     repo2docfreq = wmhash.Repo2DocFreq(extractors)
     uasts.link(repo2docfreq)
     pipeline.execute()
