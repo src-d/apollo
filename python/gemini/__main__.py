@@ -55,6 +55,8 @@ def get_parser() -> argparse.ArgumentParser:
         help="The programming language to analyse.")
     source2bags_parser.add_argument(
         "--persist", default=None, help="Persistence type (StorageClass.*).")
+    source2bags_parser.add_argument(
+        "--cassandra", default="0.0.0.0:9042", help="Persistence type (StorageClass.*).")
     add_engine_args(source2bags_parser)
 
     warmup_parser = subparsers.add_parser(
