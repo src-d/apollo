@@ -41,7 +41,6 @@ def source2bags(args):
     args.config.append("spark.cassandra.connection.host=" + cas_host)
     args.config.append("spark.cassandra.connection.port=" + cas_port)
     engine = create_engine("source2bags-%s" % uuid4(), args.repositories, args)
-    log.info("docfreq phase")
     extractors = [wmhash.__extractors__[s](args.min_docfreq) for s in args.feature]
     pipeline = UastExtractor(engine, languages=[args.language])
     if args.persist is not None:
@@ -49,18 +48,11 @@ def source2bags(args):
     else:
         uasts = pipeline
     uasts = uasts.link(UastDeserializer())
-    repo2docfreq = wmhash.Repo2DocFreq(extractors)
-    uasts.link(repo2docfreq)
-    pipeline.execute()
-    log.info("bag + batch phase")
-    uasts.unlink(repo2docfreq)
+    uasts.link(wmhash.Repo2DocFreq(extractors)).execute()
     bags = uasts.link(wmhash.Repo2WeightedSet(extractors))
     if args.persist is not None:
         bags = bags.link(Cacher(args.persist))
-    batcher = wmhash.BagsBatcher(extractors)
-    bags.link(batcher).link(wmhash.BagsBatchSaver(args.output))
-    pipeline.execute()
-    log.info("cassandra hashes phase")
-    bags.unlink(batcher)
+    bags.link(wmhash.BagsBatcher(extractors)) \
+        .link(wmhash.BagsBatchSaver(args.output))
     bags.link(CassandraSaver("gemini"))
-    pipeline.execute()
+    bags.explode()
