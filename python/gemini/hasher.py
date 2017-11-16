@@ -128,5 +128,13 @@ def hash_batches(args):
                 .mode("append") \
                 .options(table="hashtables", keyspace=args.keyspace) \
                 .save()
+            spark.parallelize(job) \
+                .map(lambda x: Row(sha1=x[0], value=bytearray(x[1].data))) \
+                .toDF() \
+                .write \
+                .format("org.apache.spark.sql.cassandra") \
+                .mode("append") \
+                .options(table="hashes", keyspace=args.keyspace) \
+                .save()
     finally:
         libMHCUDA.minhash_cuda_fini(gen)
