@@ -9,7 +9,7 @@ from pyspark.sql.types import Row
 
 
 class CassandraSaver(Transformer):
-    def __init__(self, keyspace, table="hashes", **kwargs):
+    def __init__(self, keyspace, table="bags", **kwargs):
         super().__init__(**kwargs)
         self.keyspace = keyspace
         self.table = table
@@ -54,5 +54,5 @@ def source2bags(args):
         bags = bags.link(Cacher(args.persist))
     batcher = bags.link(wmhash.BagsBatcher(extractors))
     batcher.link(wmhash.BagsBatchSaver(args.output, batcher))
-    bags.link(CassandraSaver("gemini"))
+    bags.link(CassandraSaver(args.keyspace))
     bags.explode()

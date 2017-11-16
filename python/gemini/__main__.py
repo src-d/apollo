@@ -1,12 +1,16 @@
 import argparse
 import logging
 import sys
+from time import time
 
 from modelforge.logs import setup_logging
 
 from gemini.bags import source2bags
 from gemini.hasher import hash_batches
 from gemini.warmup import warmup
+
+
+CASSANDRA_PACKAGE = "com.datastax.spark:spark-cassandra-connector_2.11:2.0.3"
 
 
 def get_parser() -> argparse.ArgumentParser:
@@ -20,17 +24,28 @@ def get_parser() -> argparse.ArgumentParser:
                         choices=logging._nameToLevel,
                         help="Logging verbosity.")
 
-    def add_engine_args(my_parser):
+    def add_spark_args(my_parser):
         my_parser.add_argument(
             "-s", "--spark", default="local[*]", help="Spark's master address.")
         my_parser.add_argument(
             "--config", nargs="+", default=[], help="Spark configuration (key=value).")
         my_parser.add_argument(
+            "--package", nargs="+", default=[CASSANDRA_PACKAGE], help="Additional Spark package.")
+        my_parser.add_argument(
+            "--spark-local-dir", default="/tmp/spark", help="Spark local directory.")
+
+    def add_engine_args(my_parser):
+        add_spark_args(my_parser)
+        my_parser.add_argument(
             "--bblfsh", default="localhost", help="Babelfish server's address.")
         my_parser.add_argument(
             "--engine", default="0.1.7", help="source{d} engine version.")
+
+    def add_cassandra_args(my_parser):
         my_parser.add_argument(
-            "--spark-local-dir", default="/tmp/spark", help="Spark local directory.")
+            "--cassandra", default="0.0.0.0:9042", help="Cassandra's host:port.")
+        my_parser.add_argument("--keyspace", default="gemini",
+                               help="Cassandra's key space.")
 
     subparsers = parser.add_subparsers(help="Commands", dest="command")
     source2bags_parser = subparsers.add_parser(
@@ -56,8 +71,7 @@ def get_parser() -> argparse.ArgumentParser:
         help="The programming language to analyse.")
     source2bags_parser.add_argument(
         "--persist", default=None, help="Persistence type (StorageClass.*).")
-    source2bags_parser.add_argument(
-        "--cassandra", default="0.0.0.0:9042", help="Persistence type (StorageClass.*).")
+    add_cassandra_args(source2bags_parser)
     add_engine_args(source2bags_parser)
 
     warmup_parser = subparsers.add_parser(
@@ -70,6 +84,28 @@ def get_parser() -> argparse.ArgumentParser:
     hash_parser.set_defaults(handler=hash_batches)
     hash_parser.add_argument("input",
                              help="Path to the directory with Parquet files.")
+    hash_parser.add_argument("--size", type=int, default=128,
+                             help="Hash size.")
+    hash_parser.add_argument("--seed", type=int, default=int(time()),
+                             help="Random generator's seed.")
+    hash_parser.add_argument("--mhc-verbosity", type=int, default=1,
+                             help="MinHashCUDA logs verbosity level.")
+    hash_parser.add_argument("--devices", type=int, default=0,
+                             help="Or-red indices of NVIDIA devices to use. 0 means all.")
+    hash_parser.add_argument("-p", "--params", required=True,
+                             help="Path to the output file with WMH parameters.")
+    hash_parser.add_argument("-t", "--threshold", required=True, type=float,
+                             help="Jaccard similarity threshold.")
+    hash_parser.add_argument("--false-positive-weight", type=float, default=0.5,
+                             help="Used to adjust the relative importance of "
+                                  "minimizing false positives count when optimizing "
+                                  "for the Jaccard similarity threshold.")
+    hash_parser.add_argument("--false-negative-weight", type=float, default=0.5,
+                             help="Used to adjust the relative importance of "
+                                  "minimizing false negatives count when optimizing "
+                                  "for the Jaccard similarity threshold.")
+    add_cassandra_args(hash_parser)
+    add_spark_args(hash_parser)
 
     return parser
 

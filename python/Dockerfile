@@ -5,7 +5,7 @@ RUN apt-get update && \
         ca-certificates locales git python3 python3-dev libxml2 libxml2-dev \
         libsnappy1v5 libsnappy-dev libonig2 make gcc g++ curl openjdk-8-jre && \
     curl https://bootstrap.pypa.io/get-pip.py | python3 && \
-    pip3 install --no-cache-dir PyStemmer bblfsh py4j modelforge parquet && \
+    pip3 install --no-cache-dir PyStemmer bblfsh py4j modelforge parquet libMHCUDA && \
     apt-get remove -y python3-dev libxml2-dev libsnappy-dev make gcc g++ curl && \
     apt-get remove -y *-doc *-man && \
     apt-get autoremove -y && \
