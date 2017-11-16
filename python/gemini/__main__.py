@@ -5,6 +5,7 @@ import sys
 from modelforge.logs import setup_logging
 
 from gemini.bags import source2bags
+from gemini.hasher import hash_batches
 from gemini.warmup import warmup
 
 
@@ -63,6 +64,12 @@ def get_parser() -> argparse.ArgumentParser:
         "warmup", help="Initialize source{d} engine.")
     warmup_parser.set_defaults(handler=warmup)
     add_engine_args(warmup_parser)
+
+    hash_parser = subparsers.add_parser(
+        "hash", help="Run MinHashCUDA on the bag batches.")
+    hash_parser.set_defaults(handler=hash_batches)
+    hash_parser.add_argument("input",
+                             help="Path to the directory with Parquet files.")
 
     return parser
 

@@ -3,10 +3,10 @@ FROM ubuntu:16.04
 RUN apt-get update && \
     apt-get install -y --no-install-suggests --no-install-recommends \
         ca-certificates locales git python3 python3-dev libxml2 libxml2-dev \
-        libonig2 make gcc curl openjdk-8-jre && \
+        libsnappy1v5 libsnappy-dev libonig2 make gcc g++ curl openjdk-8-jre && \
     curl https://bootstrap.pypa.io/get-pip.py | python3 && \
-    pip3 install --no-cache-dir PyStemmer bblfsh py4j modelforge && \
-    apt-get remove -y python3-dev libxml2-dev make gcc curl && \
+    pip3 install --no-cache-dir PyStemmer bblfsh py4j modelforge parquet && \
+    apt-get remove -y python3-dev libxml2-dev libsnappy-dev make gcc g++ curl && \
     apt-get remove -y *-doc *-man && \
     apt-get autoremove -y && \
     apt-get clean && \

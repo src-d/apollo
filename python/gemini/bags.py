@@ -31,7 +31,7 @@ class CassandraSaver(Transformer):
 
 
 def source2bags(args):
-    log = logging.getLogger("source2bags")
+    log = logging.getLogger("bags")
     if os.path.exists(args.output):
         log.critical("%s must not exist", args.output)
         return 1
@@ -52,7 +52,7 @@ def source2bags(args):
     bags = uasts.link(wmhash.Repo2WeightedSet(extractors))
     if args.persist is not None:
         bags = bags.link(Cacher(args.persist))
-    bags.link(wmhash.BagsBatcher(extractors)) \
-        .link(wmhash.BagsBatchSaver(args.output))
+    batcher = bags.link(wmhash.BagsBatcher(extractors))
+    batcher.link(wmhash.BagsBatchSaver(args.output, batcher))
     bags.link(CassandraSaver("gemini"))
     bags.explode()
