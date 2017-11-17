@@ -56,3 +56,7 @@ def source2bags(args):
     batcher.link(wmhash.BagsBatchSaver(args.output, batcher))
     bags.link(CassandraSaver(args.keyspace))
     bags.explode()
+    if args.graph:
+        log.info("Dumping the graph to %s", args.graph)
+        with open(args.graph, "w") as f:
+            pipeline.graph(stream=f)
