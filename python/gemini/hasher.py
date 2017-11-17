@@ -1,7 +1,6 @@
 import logging
 from uuid import uuid4
 
-import libMHCUDA
 from modelforge.model import Model, write_model
 from modelforge.models import register_model
 from pyspark.sql.types import Row
@@ -111,6 +110,7 @@ def hash_batches(args):
             raise ValueError("The vocabulary sizes does not match: %d != %d"
                              % (b.matrix.shape[-1], voc_size))
     log.info("Initializing the generator")
+    import libMHCUDA  # delayed import which requires CUDA and friends
     gen = libMHCUDA.minhash_cuda_init(
         voc_size, args.size, seed=args.seed, devices=args.devices, verbosity=args.mhc_verbosity)
     log.info("Writing %s", args.params)
