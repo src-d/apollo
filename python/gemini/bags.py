@@ -2,6 +2,7 @@ import logging
 import os
 from uuid import uuid4
 
+
 from sourced.ml.engine import create_engine
 from sourced.ml.repo2 import wmhash
 from sourced.ml.repo2.base import UastExtractor, Transformer, Cacher, UastDeserializer
@@ -32,8 +33,8 @@ class CassandraSaver(Transformer):
 
 def source2bags(args):
     log = logging.getLogger("bags")
-    if os.path.exists(args.output):
-        log.critical("%s must not exist", args.output)
+    if os.path.exists(args.batches):
+        log.critical("%s must not exist", args.batches)
         return 1
     if not args.config:
         args.config = []
@@ -53,9 +54,11 @@ def source2bags(args):
     if args.persist is not None:
         bags = bags.link(Cacher(args.persist))
     batcher = bags.link(wmhash.BagsBatcher(extractors))
-    batcher.link(wmhash.BagsBatchSaver(args.output, batcher))
+    batcher.link(wmhash.BagsBatchSaver(args.batches, batcher))
     bags.link(CassandraSaver(args.keyspace))
     bags.explode()
+    log.info("Writing %s", args.docfreq)
+    batcher.model.save(args.docfreq)
     if args.graph:
         log.info("Dumping the graph to %s", args.graph)
         with open(args.graph, "w") as f:

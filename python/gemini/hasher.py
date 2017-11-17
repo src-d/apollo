@@ -138,3 +138,7 @@ def hash_batches(args):
                 .save()
     finally:
         libMHCUDA.minhash_cuda_fini(gen)
+
+
+def hash_file(path, params_path, vocab_path):
+    pass

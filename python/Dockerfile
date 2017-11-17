@@ -18,7 +18,7 @@ RUN apt-get update && \
     curl https://bootstrap.pypa.io/get-pip.py | python3 && \
     pip3 install --no-cache-dir PyStemmer bblfsh py4j modelforge parquet libMHCUDA && \
     apt-get remove -y python3-dev libxml2-dev libsnappy-dev make gcc g++ curl && \
-    apt-get remove -y *-doc *-man && \
+    apt-get remove -y *-doc *-man >/dev/null && \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
