@@ -1,8 +1,11 @@
 import logging
 from uuid import uuid4
 
+from datasketch import WeightedMinHashGenerator
+from bblfsh import BblfshClient
 from modelforge.model import Model, write_model
 from modelforge.models import register_model
+import numpy
 from pyspark.sql.types import Row
 from scipy.integrate import quad as integrate
 from sourced.ml.engine import create_spark
@@ -140,5 +143,25 @@ def hash_batches(args):
         libMHCUDA.minhash_cuda_fini(gen)
 
 
-def hash_file(path, params_path, vocab_path):
-    pass
+def hash_file(path, params_path, vocab_path, bblfsh_endpoint, extractors):
+    log = logging.getLogger("hash_file")
+    params = WeightedMinHashParameters().load(params_path)
+    vocab = wmhash.OrderedDocumentFrequencies().load(vocab_path)
+    log.info("Extracting UAST from %s", path)
+    uast = BblfshClient(bblfsh_endpoint).parse(path).uast
+    log.info("Populating the bag")
+    extractors = [wmhash.__extractors__[s]() for s in extractors]
+    bag = numpy.zeros(len(vocab), dtype=numpy.float32)/
+    for ex in extractors:
+        ex.ndocs = vocab.docs
+        ex.docfreq = vocab
+        for k, v in ex.extract(uast):
+            bag[vocab.order[k]] = v
+    log.info("Hashing")
+    gen = WeightedMinHashGenerator.__new__(WeightedMinHashGenerator)
+    gen.dim = len(vocab)
+    gen.rs = params.rs
+    gen.ln_cs = params.ln_cs
+    gen.betas = params.betas
+    gen.sample_size = params.rs.shape[0]
+    return bytearray(gen.minhash(bag).data), bag

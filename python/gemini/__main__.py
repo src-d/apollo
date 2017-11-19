@@ -42,25 +42,31 @@ def get_parser() -> argparse.ArgumentParser:
         my_parser.add_argument(
             "--engine", default="0.1.7", help="source{d} engine version.")
 
+    def add_features_arg(my_parser, required: bool, suffix="."):
+        my_parser.add_argument(
+            "-f", "--feature", nargs="+", choices=("id", "node2vec", "treestats"),
+            required=required, help="The feature extraction scheme to apply" + suffix)
+
     def add_cassandra_args(my_parser):
         my_parser.add_argument(
             "--cassandra", default="0.0.0.0:9042", help="Cassandra's host:port.")
         my_parser.add_argument("--keyspace", default="gemini",
                                help="Cassandra's key space.")
 
-    def add_wmh_args(my_parser, params_help, help_suffix="."):
-        my_parser.add_argument("--size", type=int, default=128, help="Hash size" + help_suffix)
+    def add_wmh_args(my_parser, params_help: str, add_hash_size: bool):
+        if add_hash_size:
+            my_parser.add_argument("--size", type=int, default=128, help="Hash size.")
         my_parser.add_argument("-p", "--params", required=True, help=params_help)
         my_parser.add_argument("-t", "--threshold", required=True, type=float,
-                               help="Jaccard similarity threshold.")  # no help_suffix
+                               help="Jaccard similarity threshold.")
         my_parser.add_argument("--false-positive-weight", type=float, default=0.5,
                                help="Used to adjust the relative importance of "
                                     "minimizing false positives count when optimizing "
-                                    "for the Jaccard similarity threshold" + help_suffix)
+                                    "for the Jaccard similarity threshold.")
         my_parser.add_argument("--false-negative-weight", type=float, default=0.5,
                                help="Used to adjust the relative importance of "
                                     "minimizing false negatives count when optimizing "
-                                    "for the Jaccard similarity threshold" + help_suffix)
+                                    "for the Jaccard similarity threshold.")
 
     subparsers = parser.add_subparsers(help="Commands", dest="command")
     source2bags_parser = subparsers.add_parser(
@@ -81,9 +87,7 @@ def get_parser() -> argparse.ArgumentParser:
     source2bags_parser.add_argument(
         "--min-docfreq", default=1, type=int,
         help="The minimum document frequency of each element.")
-    source2bags_parser.add_argument(
-        "-f", "--feature", nargs="+", choices=("id", "node2vec", "treestats"),
-        help="The feature extraction schemes to apply.")
+    add_features_arg(source2bags_parser, True)
     source2bags_parser.add_argument(
         "-l", "--language", choices=("Java", "Python"),
         help="The programming language to analyse.")
@@ -110,7 +114,7 @@ def get_parser() -> argparse.ArgumentParser:
                              help="MinHashCUDA logs verbosity level.")
     hash_parser.add_argument("--devices", type=int, default=0,
                              help="Or-red indices of NVIDIA devices to use. 0 means all.")
-    add_wmh_args(hash_parser, params_help="Path to the output file with WMH parameters.")
+    add_wmh_args(hash_parser, "Path to the output file with WMH parameters.", True)
     add_cassandra_args(hash_parser)
     add_spark_args(hash_parser)
 
@@ -119,13 +123,14 @@ def get_parser() -> argparse.ArgumentParser:
     mode_group = query_parser.add_mutually_exclusive_group(required=True)
     mode_group.add_argument("-i", "--id", action="store_true",
                             help="Query for this id (id mode).")
-    mode_group.add_argument("-f", "--file", action="store_true",
-                            help="Query for this file (file mode).")
-    query_parser.add_argument("-x", "--precise", action="store_true",
-                              help="Calculate the precise set.")
+    mode_group.add_argument("-f", "--file", help="Query for this file (file mode).")
+    query_parser.add_argument("--docfreq", help="Path to OrderedDocumentFrequencies (file mode).")
+    query_parser.add_argument(
+        "--bblfsh", default="localhost:9432", help="Babelfish server's endpoint.")
+    add_features_arg(query_parser, False, " (file mode).")
+    query_parser.add_argument("-x", "--precise", help="Calculate the precise set.")
     query_parser.add_argument("-o", "--format", choices=("human", "json"), help="Output format.")
-    add_wmh_args(query_parser, params_help="Path to the Weighted MinHash parameters (file mode).",
-                 help_suffix=" (file mode).")
+    add_wmh_args(query_parser, "Path to the Weighted MinHash parameters.", False)
     add_cassandra_args(query_parser)
 
     return parser
