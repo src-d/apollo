@@ -140,6 +140,9 @@ def get_parser() -> argparse.ArgumentParser:
     db_parser = subparsers.add_parser("resetdb", help="Destructively initialize the database.")
     db_parser.set_defaults(handler=reset_db)
     add_cassandra_args(db_parser)
+    db_parser.add_argument(
+        "--hashes-only", action="store_true",
+        help="Only clear the tables: hashes, hashtables, hashtables2. Do not touch the rest.")
 
     hashgraph_parser = subparsers.add_parser(
         "hashgraph", help="Print all similar pairs of files according to Weighted MinHash. "

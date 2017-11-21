@@ -50,16 +50,22 @@ def reset_db(args):
         print(cmd + ";")
         db.execute(cmd)
 
-    cql("DROP KEYSPACE IF EXISTS %s" % args.keyspace)
-    cql("CREATE KEYSPACE %s WITH REPLICATION = {"
-        "'class' : 'SimpleStrategy', 'replication_factor' : 1}" % args.keyspace)
-    print("USE %s;" % args.keyspace)
-    db.set_keyspace(args.keyspace)
+    if not args.hashes_only:
+        cql("DROP KEYSPACE IF EXISTS %s" % args.keyspace)
+        cql("CREATE KEYSPACE %s WITH REPLICATION = {"
+            "'class' : 'SimpleStrategy', 'replication_factor' : 1}" % args.keyspace)
+        print("USE %s;" % args.keyspace)
+        db.set_keyspace(args.keyspace)
     tables = args.tables
-    cql("CREATE TABLE %s (sha1 ascii, item ascii, value float, PRIMARY KEY (sha1, item))"
-        % tables["bags"])
+    if not args.hashes_only:
+        cql("CREATE TABLE %s (sha1 ascii, item ascii, value float, PRIMARY KEY (sha1, item))"
+            % tables["bags"])
+    else:
+        cql("DROP TABLE IF EXISTS %s" % tables["hashes"])
+        cql("DROP TABLE IF EXISTS %s" % tables["hashtables"])
+        cql("DROP TABLE IF EXISTS %s" % tables["hashtables2"])
     cql("CREATE TABLE %s (sha1 ascii, value blob, PRIMARY KEY (sha1))" % tables["hashes"])
-    cql("CREATE TABLE %s (sha1 ascii, hashtable tinyint, value blob "
+    cql("CREATE TABLE %s (sha1 ascii, hashtable tinyint, value blob, "
         "PRIMARY KEY (hashtable, value))" % tables["hashtables"])
     cql("CREATE TABLE %s (sha1 ascii, hashtable tinyint, value blob, "
         "PRIMARY KEY (sha1, hashtable))" % tables["hashtables2"])
