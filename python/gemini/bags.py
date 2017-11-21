@@ -8,6 +8,8 @@ from sourced.ml.repo2 import wmhash
 from sourced.ml.repo2.base import UastExtractor, Transformer, Cacher, UastDeserializer
 from pyspark.sql.types import Row
 
+from gemini import cassandra_utils
+
 
 class CassandraSaver(Transformer):
     def __init__(self, keyspace, table="bags", **kwargs):
@@ -38,9 +40,7 @@ def source2bags(args):
         return 1
     if not args.config:
         args.config = []
-    cas_host, cas_port = args.cassandra.split(":")
-    args.config.append("spark.cassandra.connection.host=" + cas_host)
-    args.config.append("spark.cassandra.connection.port=" + cas_port)
+    cassandra_utils.configure(args)
     engine = create_engine("source2bags-%s" % uuid4(), args.repositories, args)
     extractors = [wmhash.__extractors__[s](args.min_docfreq) for s in args.feature]
     pipeline = UastExtractor(engine, languages=[args.language])

@@ -3,13 +3,15 @@ from uuid import uuid4
 
 from datasketch import WeightedMinHashGenerator
 from bblfsh import BblfshClient
-from modelforge.model import Model, write_model
+from modelforge.model import Model
 from modelforge.models import register_model
 import numpy
 from pyspark.sql.types import Row
 from scipy.integrate import quad as integrate
 from sourced.ml.engine import create_spark
 from sourced.ml.repo2 import wmhash
+
+from gemini import cassandra_utils
 
 #####################################################################################
 # Begin code from https://github.com/ekzhu/datasketch/blob/master/datasketch/lsh.py #
@@ -75,10 +77,8 @@ class WeightedMinHashParameters(Model):
     def dump(self):
         return """Shape: %s""" % (self.rs.shape,)
 
-    def _write(self, output):
-        write_model(self._meta,
-                    {"rs": self.rs, "ln_cs": self.ln_cs, "betas": self.betas},
-                    output)
+    def _generate_tree(self):
+        return {"rs": self.rs, "ln_cs": self.ln_cs, "betas": self.betas}
 
 
 class HashExploder:
@@ -106,6 +106,7 @@ def hash_batches(args):
         args.threshold, args.size, args.false_positive_weight, args.false_negative_weight)
     log.info("Number of hash tables: %d", htnum)
     log.info("Band size: %d", band_size)
+    cassandra_utils.configure(args)
     spark = create_spark("hash-%s" % uuid4(), args).sparkContext
     voc_size = batches[0].matrix.shape[-1]
     for b in batches:
@@ -124,13 +125,19 @@ def hash_batches(args):
             log.info("Processing batch %d / %d", i + 1, len(batches))
             hashes = libMHCUDA.minhash_cuda_calc(gen, batch.matrix)
             job = [(k, h) for k, h in zip(batch.keys, hashes)]
-            log.info("Saving the hashes")
-            spark.parallelize(job).flatMap(HashExploder(htnum, band_size)).toDF() \
-                .write \
+            log.info("Saving the hashtables")
+            df = spark.parallelize(job).flatMap(HashExploder(htnum, band_size)).toDF()
+            df.write \
                 .format("org.apache.spark.sql.cassandra") \
                 .mode("append") \
                 .options(table="hashtables", keyspace=args.keyspace) \
                 .save()
+            df.write \
+                .format("org.apache.spark.sql.cassandra") \
+                .mode("append") \
+                .options(table="hashtables2", keyspace=args.keyspace) \
+                .save()
+            log.info("Saving the hashes")
             spark.parallelize(job) \
                 .map(lambda x: Row(sha1=x[0], value=bytearray(x[1].data))) \
                 .toDF() \
@@ -151,7 +158,7 @@ def hash_file(path, params_path, vocab_path, bblfsh_endpoint, extractors):
     uast = BblfshClient(bblfsh_endpoint).parse(path).uast
     log.info("Populating the bag")
     extractors = [wmhash.__extractors__[s]() for s in extractors]
-    bag = numpy.zeros(len(vocab), dtype=numpy.float32)/
+    bag = numpy.zeros(len(vocab), dtype=numpy.float32)
     for ex in extractors:
         ex.ndocs = vocab.docs
         ex.docfreq = vocab

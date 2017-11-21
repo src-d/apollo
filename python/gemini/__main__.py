@@ -40,7 +40,7 @@ def get_parser() -> argparse.ArgumentParser:
         my_parser.add_argument(
             "--bblfsh", default="localhost", help="Babelfish server's address.")
         my_parser.add_argument(
-            "--engine", default="0.1.7", help="source{d} engine version.")
+            "--engine", default="0.1.8", help="source{d} engine version.")
 
     def add_features_arg(my_parser, required: bool, suffix="."):
         my_parser.add_argument(
@@ -53,11 +53,11 @@ def get_parser() -> argparse.ArgumentParser:
         my_parser.add_argument("--keyspace", default="gemini",
                                help="Cassandra's key space.")
 
-    def add_wmh_args(my_parser, params_help: str, add_hash_size: bool):
+    def add_wmh_args(my_parser, params_help: str, add_hash_size: bool, required: bool):
         if add_hash_size:
             my_parser.add_argument("--size", type=int, default=128, help="Hash size.")
-        my_parser.add_argument("-p", "--params", required=True, help=params_help)
-        my_parser.add_argument("-t", "--threshold", required=True, type=float,
+        my_parser.add_argument("-p", "--params", required=required, help=params_help)
+        my_parser.add_argument("-t", "--threshold", required=required, type=float,
                                help="Jaccard similarity threshold.")
         my_parser.add_argument("--false-positive-weight", type=float, default=0.5,
                                help="Used to adjust the relative importance of "
@@ -114,23 +114,23 @@ def get_parser() -> argparse.ArgumentParser:
                              help="MinHashCUDA logs verbosity level.")
     hash_parser.add_argument("--devices", type=int, default=0,
                              help="Or-red indices of NVIDIA devices to use. 0 means all.")
-    add_wmh_args(hash_parser, "Path to the output file with WMH parameters.", True)
+    add_wmh_args(hash_parser, "Path to the output file with WMH parameters.", True, True)
     add_cassandra_args(hash_parser)
     add_spark_args(hash_parser)
 
     query_parser = subparsers.add_parser("query", help="Query for similar files.")
     query_parser.set_defaults(handler=query)
     mode_group = query_parser.add_mutually_exclusive_group(required=True)
-    mode_group.add_argument("-i", "--id", action="store_true",
-                            help="Query for this id (id mode).")
-    mode_group.add_argument("-f", "--file", help="Query for this file (file mode).")
+    mode_group.add_argument("-i", "--id", help="Query for this id (id mode).")
+    mode_group.add_argument("-c", "--file", help="Query for this file (file mode).")
     query_parser.add_argument("--docfreq", help="Path to OrderedDocumentFrequencies (file mode).")
     query_parser.add_argument(
         "--bblfsh", default="localhost:9432", help="Babelfish server's endpoint.")
     add_features_arg(query_parser, False, " (file mode).")
-    query_parser.add_argument("-x", "--precise", help="Calculate the precise set.")
+    query_parser.add_argument("-x", "--precise", action="store_true",
+                              help="Calculate the precise set.")
     query_parser.add_argument("-o", "--format", choices=("human", "json"), help="Output format.")
-    add_wmh_args(query_parser, "Path to the Weighted MinHash parameters.", False)
+    add_wmh_args(query_parser, "Path to the Weighted MinHash parameters.", False, False)
     add_cassandra_args(query_parser)
 
     return parser
@@ -142,7 +142,6 @@ def main():
 
     :return: The result of the function from set_defaults().
     """
-
     parser = get_parser()
     args = parser.parse_args()
     args.log_level = logging._nameToLevel[args.log_level]

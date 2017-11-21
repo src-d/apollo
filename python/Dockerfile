@@ -16,7 +16,7 @@ RUN apt-get update && \
         libgomp1 libxml2 libxml2-dev \
         libsnappy1v5 libsnappy-dev libonig2 make gcc g++ curl openjdk-8-jre && \
     curl https://bootstrap.pypa.io/get-pip.py | python3 && \
-    pip3 install --no-cache-dir PyStemmer bblfsh py4j modelforge parquet libMHCUDA && \
+    pip3 install --no-cache-dir PyStemmer bblfsh py4j modelforge parquet libMHCUDA datasketch cassandra_driver && \
     apt-get remove -y python3-dev libxml2-dev libsnappy-dev make gcc g++ curl && \
     apt-get remove -y *-doc *-man >/dev/null && \
     apt-get autoremove -y && \
