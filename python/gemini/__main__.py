@@ -6,6 +6,7 @@ from time import time
 from modelforge.logs import setup_logging
 
 from gemini.bags import source2bags
+from gemini.cassandra_utils import reset_db
 from gemini.hasher import hash_batches
 from gemini.query import query
 from gemini.warmup import warmup
@@ -132,6 +133,13 @@ def get_parser() -> argparse.ArgumentParser:
     query_parser.add_argument("-o", "--format", choices=("human", "json"), help="Output format.")
     add_wmh_args(query_parser, "Path to the Weighted MinHash parameters.", False, False)
     add_cassandra_args(query_parser)
+
+    db_parser = subparsers.add_parser("resetdb", help="Destructively initialize the database.")
+    db_parser.set_defaults(handler=reset_db)
+    add_cassandra_args(db_parser)
+
+    #graph_parser = subparsers.add_parser("graph", help="Print all similar pairs of files.")
+    #graph_parser.set_defaults(handler=print_graph)
 
     return parser
 

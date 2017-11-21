@@ -2,18 +2,16 @@ import codecs
 import logging
 import numpy
 
-from cassandra.cluster import Cluster
+
 from sourced.ml.repo2 import wmhash
 
+from gemini.cassandra_utils import get_db
 from gemini.hasher import hash_file, calc_hashtable_params
 
 
 def query(args):
     log = logging.getLogger("query")
-    cashost, casport = args.cassandra.split(":")
-    cluster = Cluster((cashost,), int(casport))
-    log.info("Connecting to %s", args.cassandra)
-    session = cluster.connect(args.keyspace)
+    session = get_db(args)
     if args.id:
         rows = session.execute(
             "SELECT hashtable, value FROM hashtables2 WHERE sha1='%s'" % args.id)
