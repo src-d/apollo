@@ -54,6 +54,8 @@ def get_parser() -> argparse.ArgumentParser:
             "--cassandra", default="0.0.0.0:9042", help="Cassandra's host:port.")
         my_parser.add_argument("--keyspace", default="gemini",
                                help="Cassandra's key space.")
+        my_parser.add_argument(
+            "--tables", help="Table name mapping (JSON): bags, hashes, hashtables, hashtables2.")
 
     def add_wmh_args(my_parser, params_help: str, add_hash_size: bool, required: bool):
         if add_hash_size:

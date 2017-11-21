@@ -120,6 +120,7 @@ def hash_batches(args):
     log.info("Writing %s", args.params)
     params = libMHCUDA.minhash_cuda_retrieve_vars(gen)
     WeightedMinHashParameters().construct(*params).save(args.params)
+    tables = args.tables
     try:
         for i, batch in enumerate(batches):
             log.info("Processing batch %d / %d", i + 1, len(batches))
@@ -130,12 +131,12 @@ def hash_batches(args):
             df.write \
                 .format("org.apache.spark.sql.cassandra") \
                 .mode("append") \
-                .options(table="hashtables", keyspace=args.keyspace) \
+                .options(table=tables["hashtables"], keyspace=args.keyspace) \
                 .save()
             df.write \
                 .format("org.apache.spark.sql.cassandra") \
                 .mode("append") \
-                .options(table="hashtables2", keyspace=args.keyspace) \
+                .options(table=tables["hashtables2"], keyspace=args.keyspace) \
                 .save()
             log.info("Saving the hashes")
             spark.parallelize(job) \
@@ -144,7 +145,7 @@ def hash_batches(args):
                 .write \
                 .format("org.apache.spark.sql.cassandra") \
                 .mode("append") \
-                .options(table="hashes", keyspace=args.keyspace) \
+                .options(table=tables["hashes"], keyspace=args.keyspace) \
                 .save()
     finally:
         libMHCUDA.minhash_cuda_fini(gen)

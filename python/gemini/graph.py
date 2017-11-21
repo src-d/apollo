@@ -6,12 +6,14 @@ from gemini.cassandra_utils import get_db
 def print_hash_graph(args):
     log = logging.getLogger("graph")
     session = get_db(args)
-    rows = session.execute("SELECT DISTINCT hashtable FROM hashtables")
+    table = args.tables["hashtables"]
+    rows = session.execute("SELECT DISTINCT hashtable FROM %s" % table)
     hashtables = sorted(r.hashtable for r in rows)
     log.info("Detected %d hashtables", len(hashtables))
     for hashtable in hashtables:
         log.info("Fetching %d", hashtable)
-        rows = session.execute("SELECT sha1, value FROM hashtables WHERE hashtable=%d" % hashtable)
+        rows = session.execute(
+            "SELECT sha1, value FROM %s WHERE hashtable=%d" % (table, hashtable))
         band = None
         group = set()
         for row in rows:

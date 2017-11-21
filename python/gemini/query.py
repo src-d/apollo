@@ -12,9 +12,10 @@ from gemini.hasher import hash_file, calc_hashtable_params
 def query(args):
     log = logging.getLogger("query")
     session = get_db(args)
+    tables = args.tables
     if args.id:
         rows = session.execute(
-            "SELECT hashtable, value FROM hashtables2 WHERE sha1='%s'" % args.id)
+            "SELECT hashtable, value FROM %s WHERE sha1='%s'" % (tables["hashtables2"], args.id))
         bands = [(r.hashtable, r.value) for r in rows]
     else:
         # args.file
@@ -29,8 +30,8 @@ def query(args):
     log.info("Looking for similar items")
     for i, band in bands:
         rows = session.execute(
-            "SELECT sha1 FROM hashtables WHERE hashtable=%d AND value=0x%s"
-            % (i, codecs.encode(band, "hex").decode()))
+            "SELECT sha1 FROM %s WHERE hashtable=%d AND value=0x%s"
+            % (tables["hashtables"], i, codecs.encode(band, "hex").decode()))
         similar.update(r.sha1 for r in rows)
     log.info("Fetched %d items", len(similar))
     if args.precise:
@@ -38,14 +39,16 @@ def query(args):
         vocab = wmhash.OrderedDocumentFrequencies().load(args.docfreq)
         log.info("Calculating the precise result")
         if args.id:
-            rows = session.execute("SELECT item, value FROM bags WHERE sha1='%s'" % args.id)
+            rows = session.execute(
+                "SELECT item, value FROM %s WHERE sha1='%s'" % (tables["bags"], args.id))
             bag = numpy.zeros(len(vocab), dtype=numpy.float32)
             for row in rows:
                 bag[vocab.order[row.item]] = row.value
         # Fetch other bags from the DB
         precise = []
         for x in similar:
-            rows = session.execute("SELECT item, value FROM bags WHERE sha1='%s'" % x)
+            rows = session.execute(
+                "SELECT item, value FROM %s WHERE sha1='%s'" % (tables["bags"], x))
             other_bag = numpy.zeros(len(vocab), dtype=numpy.float32)
             for row in rows:
                 other_bag[vocab.order[row.item]] = row.value

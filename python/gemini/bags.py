@@ -12,7 +12,7 @@ from gemini import cassandra_utils
 
 
 class CassandraSaver(Transformer):
-    def __init__(self, keyspace, table="bags", **kwargs):
+    def __init__(self, keyspace, table, **kwargs):
         super().__init__(**kwargs)
         self.keyspace = keyspace
         self.table = table
@@ -55,7 +55,7 @@ def source2bags(args):
         bags = bags.link(Cacher(args.persist))
     batcher = bags.link(wmhash.BagsBatcher(extractors))
     batcher.link(wmhash.BagsBatchSaver(args.batches, batcher))
-    bags.link(CassandraSaver(args.keyspace))
+    bags.link(CassandraSaver(args.keyspace, args.tables["bags"]))
     bags.explode()
     log.info("Writing %s", args.docfreq)
     batcher.model.save(args.docfreq)
