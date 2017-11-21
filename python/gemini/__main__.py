@@ -7,6 +7,7 @@ from modelforge.logs import setup_logging
 
 from gemini.bags import source2bags
 from gemini.cassandra_utils import reset_db
+from gemini.graph import print_hash_graph
 from gemini.hasher import hash_batches
 from gemini.query import query
 from gemini.warmup import warmup
@@ -138,8 +139,13 @@ def get_parser() -> argparse.ArgumentParser:
     db_parser.set_defaults(handler=reset_db)
     add_cassandra_args(db_parser)
 
-    #graph_parser = subparsers.add_parser("graph", help="Print all similar pairs of files.")
-    #graph_parser.set_defaults(handler=print_graph)
+    hashgraph_parser = subparsers.add_parser(
+        "hashgraph", help="Print all similar pairs of files according to Weighted MinHash. "
+                          "Needs | sort | uniq to eliminate duplicates.")
+    hashgraph_parser.set_defaults(handler=print_hash_graph)
+    add_cassandra_args(hashgraph_parser)
+
+    # TODO: retable [.....] -> [.] [.] [.] [.] [.]
 
     return parser
 
