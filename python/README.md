@@ -20,7 +20,7 @@ docker exec -it bblfshd bblfshctl driver install --all
 docker run -it --rm -v /path/to/io:/io --link bblfshd --link scylla srcd/apollo bags -r /io/siva --batches /io/batches --docfreq /io/docfreq.asdf -f id -l Java -s 'local[*]' --min-docfreq 5 --bblfsh bblfshd --cassandra scylla:9042 --persist MEMORY_ONLY
 ```
 
-### Hashing
+### Hash
 
 ```
 docker run -it --rm -v /path/to/io:/io --link scylla srcd/apollo hash /io/batches -p /io/params.asdf -t 0.9 --cassandra scylla:9042
