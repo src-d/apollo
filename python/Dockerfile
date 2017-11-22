@@ -28,11 +28,12 @@ RUN apt-get update && \
 ADD bundle/spark /spark/
 ADD bundle/engine/python/sourced/engine/ /packages/sourced/engine/
 ADD bundle/ml/sourced/ml/ /packages/sourced/ml/
-ADD gemini/ /packages/gemini/
+ADD gemini/ /packages/gemini/gemini/
+ADD setup.py /packages/gemini
 
-ENV PYTHONPATH /packages/gemini:/packages/sourced:/spark/python
+ENV PYTHONPATH /packages:/spark/python
 WORKDIR /packages
 
-RUN touch /packages/sourced/__init__.py && python3 -m gemini warmup -s 'local[*]'
+RUN touch sourced/__init__.py && pip3 install --no-deps -e gemini/ && gemini warmup -s 'local[*]'
 
-ENTRYPOINT ["python3", "-m", "gemini"]
+ENTRYPOINT ["gemini"]
