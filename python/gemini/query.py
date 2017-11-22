@@ -19,9 +19,15 @@ def query(args):
         bands = [(r.hashtable, r.value) for r in rows]
     else:
         # args.file
+        if not args.feature:
+            log.critical("-f / --feature must be specified at least once in file query mode")
+            return 1
+        if not args.params:
+            log.critical("-p / --params must be specified in file query mode")
+            return 1
         wmh, bag = hash_file(args.file, args.params, args.docfreq, args.bblfsh, args.feature)
         htnum, band_size = calc_hashtable_params(
-            args.threshold, len(wmh) // 8, args.false_positive_weight, args.false_negative_weight)
+            args.threshold, len(wmh), args.false_positive_weight, args.false_negative_weight)
         log.info("Number of hash tables: %d", htnum)
         log.info("Band size: %d", band_size)
         bands = [(i, bytearray(wmh[i * band_size:(i + 1) * band_size].data))

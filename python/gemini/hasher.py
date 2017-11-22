@@ -1,7 +1,6 @@
 import logging
 from uuid import uuid4
 
-from datasketch import WeightedMinHashGenerator
 from bblfsh import BblfshClient
 from modelforge.model import Model
 from modelforge.models import register_model
@@ -69,6 +68,7 @@ class WeightedMinHashParameters(Model):
         self.rs = rs
         self.ln_cs = ln_cs
         self.betas = betas
+        rs[0] + ln_cs[0] + betas[0]  # do not remove - this loads the arrays from disk
         return self
 
     def _load_tree(self, tree):
@@ -152,9 +152,11 @@ def hash_batches(args):
 
 
 def hash_file(path, params_path, vocab_path, bblfsh_endpoint, extractors):
+    if not extractors:
+        raise ValueError("extractors must not be empty")
     log = logging.getLogger("hash_file")
-    params = WeightedMinHashParameters().load(params_path)
     vocab = wmhash.OrderedDocumentFrequencies().load(vocab_path)
+    params = WeightedMinHashParameters().load(params_path)
     log.info("Extracting UAST from %s", path)
     uast = BblfshClient(bblfsh_endpoint).parse(path).uast
     log.info("Populating the bag")
@@ -165,11 +167,23 @@ def hash_file(path, params_path, vocab_path, bblfsh_endpoint, extractors):
         ex.docfreq = vocab
         for k, v in ex.extract(uast):
             bag[vocab.order[k]] = v
+    log.info("Bag size: %d", len(bag.nonzero()[0]))
     log.info("Hashing")
-    gen = WeightedMinHashGenerator.__new__(WeightedMinHashGenerator)
-    gen.dim = len(vocab)
-    gen.rs = params.rs
-    gen.ln_cs = params.ln_cs
-    gen.betas = params.betas
-    gen.sample_size = params.rs.shape[0]
-    return bytearray(gen.minhash(bag).data), bag
+    return weighted_minhash(bag, params.rs.shape[0], params.rs, params.ln_cs, params.betas), bag
+
+
+def weighted_minhash(v, sample_size, rs, ln_cs, betas):
+    hashvalues = numpy.zeros((sample_size, 2), dtype=numpy.uint32)
+    vzeros = (v == 0)
+    if vzeros.all():
+        raise ValueError("Input is all zeros")
+    v[vzeros] = numpy.nan
+    vlog = numpy.log(v)
+    v[vzeros] = 0
+    for i in range(sample_size):
+        t = numpy.floor((vlog / rs[i]) + betas[i])
+        ln_y = (t - betas[i]) * rs[i]
+        ln_a = ln_cs[i] - ln_y - rs[i]
+        k = numpy.nanargmin(ln_a)
+        hashvalues[i][0], hashvalues[i][1] = k, int(t[k])
+    return hashvalues
