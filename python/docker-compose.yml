@@ -1,0 +1,21 @@
+version: '3'
+services:
+  apollo:
+    build: .
+    image: srcd/apollo
+    privileged: true
+    stdin_open: true
+    tty: true
+    links:
+      - bblfshd
+      - scylla
+  bblfshd:
+    image: bblfsh/bblfshd
+    privileged: true
+    volumes:
+      - /var/lib/bblfshd
+  scylla:
+    image: scylladb/scylla
+    command: /docker-entrypoint.py --developer-mode=1
+    volumes:
+      - /var/lib/scylla
