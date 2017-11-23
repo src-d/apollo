@@ -44,7 +44,7 @@ def get_parser() -> argparse.ArgumentParser:
         my_parser.add_argument(
             "--bblfsh", default="localhost", help="Babelfish server's address.")
         my_parser.add_argument(
-            "--engine", default="0.1.7", help="source{d} engine version.")
+            "--engine", default="0.1.8", help="source{d} engine version.")
 
     def add_features_arg(my_parser, required: bool, suffix="."):
         my_parser.add_argument(
