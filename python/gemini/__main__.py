@@ -160,6 +160,7 @@ def get_parser() -> argparse.ArgumentParser:
                           "Needs | sort | uniq to eliminate duplicates.")
     hashgraph_parser.set_defaults(handler=print_hash_graph)
     add_cassandra_args(hashgraph_parser)
+    hashgraph_parser.add_argument("-o", "--output", help="Path to save asdf-file with buckets.")
 
     # TODO: retable [.....] -> [.] [.] [.] [.] [.]
 
