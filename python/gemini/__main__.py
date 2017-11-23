@@ -48,7 +48,8 @@ def get_parser() -> argparse.ArgumentParser:
 
     def add_features_arg(my_parser, required: bool, suffix="."):
         my_parser.add_argument(
-            "-f", "--feature", nargs="+", choices=("id", "node2vec", "treestats"),
+            "-f", "--feature", nargs="+",
+            choices=[ex.NAME for ex in wmhash.__extractors__.values()],
             required=required, help="The feature extraction scheme to apply" + suffix)
         for ex in wmhash.__extractors__.values():
             for opt, val in ex.OPTS.items():
