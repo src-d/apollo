@@ -1,9 +1,11 @@
 import argparse
+import json
 import logging
 import sys
 from time import time
 
 from modelforge.logs import setup_logging
+from sourced.ml.repo2 import wmhash
 
 from gemini.bags import source2bags
 from gemini.cassandra_utils import reset_db
@@ -42,12 +44,16 @@ def get_parser() -> argparse.ArgumentParser:
         my_parser.add_argument(
             "--bblfsh", default="localhost", help="Babelfish server's address.")
         my_parser.add_argument(
-            "--engine", default="0.1.8", help="source{d} engine version.")
+            "--engine", default="0.1.7", help="source{d} engine version.")
 
     def add_features_arg(my_parser, required: bool, suffix="."):
         my_parser.add_argument(
             "-f", "--feature", nargs="+", choices=("id", "node2vec", "treestats"),
             required=required, help="The feature extraction scheme to apply" + suffix)
+        for ex in wmhash.__extractors__.values():
+            for opt, val in ex.OPTS.items():
+                my_parser.add_argument("--%s-%s" % (ex.NAME, opt), default=val, type=json.loads,
+                                       help="%s's kwarg" % ex.__name__)
 
     def add_cassandra_args(my_parser):
         my_parser.add_argument(
