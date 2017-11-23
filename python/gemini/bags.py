@@ -18,9 +18,10 @@ class CassandraSaver(Transformer):
         self.table = table
 
     def __call__(self, head):
-        head \
-            .flatMap(self.explode) \
-            .toDF() \
+        rows = head.flatMap(self.explode)
+        if self.explained:
+            self._log.info("toDebugString():\n%s", rows.toDebugString().decode())
+        rows.toDF() \
             .write \
             .format("org.apache.spark.sql.cassandra") \
             .mode("append") \
@@ -43,7 +44,7 @@ def source2bags(args):
     cassandra_utils.configure(args)
     engine = create_engine("source2bags-%s" % uuid4(), args.repositories, args)
     extractors = [wmhash.__extractors__[s](args.min_docfreq) for s in args.feature]
-    pipeline = UastExtractor(engine, languages=[args.language])
+    pipeline = UastExtractor(engine, languages=[args.language], explain=args.explain)
     if args.persist is not None:
         uasts = pipeline.link(Cacher(args.persist))
     else:
@@ -63,3 +64,5 @@ def source2bags(args):
         log.info("Dumping the graph to %s", args.graph)
         with open(args.graph, "w") as f:
             pipeline.graph(stream=f)
+    if args.pause:
+        input("Press Enter to exit...")
