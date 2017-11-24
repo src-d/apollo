@@ -1,4 +1,5 @@
 import logging
+import os
 from uuid import uuid4
 
 from bblfsh import BblfshClient
@@ -117,9 +118,13 @@ def hash_batches(args):
     import libMHCUDA  # delayed import which requires CUDA and friends
     gen = libMHCUDA.minhash_cuda_init(
         voc_size, args.size, seed=args.seed, devices=args.devices, verbosity=args.mhc_verbosity)
-    log.info("Writing %s", args.params)
-    params = libMHCUDA.minhash_cuda_retrieve_vars(gen)
-    WeightedMinHashParameters().construct(*params).save(args.params)
+    if os.path.isfile(args.params):
+        model = WeightedMinHashParameters().load(args.params)
+        libMHCUDA.minhash_cuda_assign_vars(model.rs, model.ln_cs, model.betas)
+    else:
+        log.info("Writing %s", args.params)
+        params = libMHCUDA.minhash_cuda_retrieve_vars(gen)
+        WeightedMinHashParameters().construct(*params).save(args.params)
     tables = args.tables
     try:
         for i, batch in enumerate(batches):
