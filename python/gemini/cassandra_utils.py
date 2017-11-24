@@ -66,6 +66,6 @@ def reset_db(args):
         cql("DROP TABLE IF EXISTS %s" % tables["hashtables2"])
     cql("CREATE TABLE %s (sha1 ascii, value blob, PRIMARY KEY (sha1))" % tables["hashes"])
     cql("CREATE TABLE %s (sha1 ascii, hashtable tinyint, value blob, "
-        "PRIMARY KEY (hashtable, value))" % tables["hashtables"])
+        "PRIMARY KEY (hashtable, value, sha1))" % tables["hashtables"])
     cql("CREATE TABLE %s (sha1 ascii, hashtable tinyint, value blob, "
         "PRIMARY KEY (sha1, hashtable))" % tables["hashtables2"])
