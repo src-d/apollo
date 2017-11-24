@@ -1,55 +1,55 @@
-from copy import deepcopy
+from collections import defaultdict
 import logging
 
-from modelforge.model import Model, merge_strings, split_strings
-from modelforge.models import register_model
+from modelforge import Model, merge_strings, split_strings, assemble_sparse_matrix, \
+    disassemble_sparse_matrix, register_model
+import numpy
+from scipy.sparse import csr_matrix
 
 from gemini.cassandra_utils import get_db
 
 
 @register_model
-class MinHashBucketsModel(Model):
+class ConnectedComponentsModel(Model):
     """
-    Model to store Buckets with sha1.
+    Model to store connected components.
     """
-    NAME = "mhbuckets"
+    NAME = "connected_components"
 
-    def construct(self, buckets):
-        self.sha1_to_id, self.buckets = self.convert_buckets(buckets)
+    def construct(self, connected_components, element_to_buckets, element_to_id):
+        self.id_to_cc = numpy.zeros(len(element_to_id), dtype=numpy.uint32)
+        for cc, ids in connected_components.items():
+            for id_ in ids:
+                self.id_to_cc[id_] = cc
+        self.id_to_element = [None] * len(element_to_id)
+        for k, v in element_to_id.items():
+            self.id_to_element[v] = k
+        data = numpy.ones(sum(map(len, element_to_buckets)), dtype=numpy.uint8)
+        indices = numpy.zeros(len(data), dtype=numpy.uint32)
+        indptr = numpy.zeros(len(element_to_buckets) + 1, dtype=numpy.uint32)
+        pos = 0
+        for i, element in enumerate(element_to_buckets):
+            indices[pos:(pos + len(element))] = element
+            indptr[i + 1] = indptr[i] + len(element)
+        self.element_to_buckets = csr_matrix((data, indices, indptr))
         return self
 
     def _load_tree(self, tree):
-        sha1_list = split_strings(tree["sha1_list"])
-        self.sha1_to_id = {}
-        for i, sha1 in enumerate(sha1_list):
-            self.sha1_to_id[sha1] = i
-        self.buckets = tree["buckets"]
+        self.id_to_cc = tree["cc"]
+        self.id_to_cc[0]  # do not remove - loads the array from disk
+        self.id_to_element = split_strings(tree["elements"])
+        self.element_to_buckets = assemble_sparse_matrix(tree["buckets"])
 
     def dump(self):
-        return "Number of buckets: %s\nNumber of unique sha1: %s" % (
-            len(self.buckets), len(self.sha1_to_id))
+        return "Number of connected components: %s\nNumber of unique elements: %s" % (
+            len(numpy.unique(self.id_to_cc)), len(self.id_to_element))
 
     def _generate_tree(self):
-        sha1_list = []
-        for sha1, _ in sorted(self.sha1_to_id.items(), key=lambda kv: kv[1]):
-            sha1_list.append(sha1)
-
-        return {"sha1_list": merge_strings(sha1_list), "buckets": self.buckets}
-
-    @staticmethod
-    def convert_buckets(buckets):
-        sha1_to_id = {}
-
-        new_buckets = []
-        for bucket in buckets:
-            new_bucket = []
-            for sha1 in bucket:
-                new_bucket.append(sha1_to_id.setdefault(sha1, len(sha1_to_id)))
-            new_buckets.append(new_bucket)
-        return sha1_to_id, new_buckets
+        return {"cc": self.id_to_cc, "elements": merge_strings(self.id_to_element),
+                "buckets": disassemble_sparse_matrix(self.element_to_buckets)}
 
 
-def print_hash_graph(args):
+def ccgraph(args):
     log = logging.getLogger("graph")
     session = get_db(args)
     table = args.tables["hashtables"]
@@ -57,6 +57,7 @@ def print_hash_graph(args):
     hashtables = sorted(r.hashtable for r in rows)
     log.info("Detected %d hashtables", len(hashtables))
     buckets = []
+    elements = {}
     for hashtable in hashtables:
         log.info("Fetching %d", hashtable)
         rows = session.execute(
@@ -64,12 +65,49 @@ def print_hash_graph(args):
         band = None
         bucket = []
         for row in rows:
+            eid = elements.setdefault(row.sha1, len(elements))
             if row.value != band:
                 band = row.value
-                buckets.append(deepcopy(bucket))
+                buckets.append(bucket.copy())
                 bucket.clear()
-                bucket.append(row.sha1)
+                bucket.append(eid)
                 continue
-            bucket.append(row.sha1)
+            bucket.append(eid)
 
-    MinHashBucketsModel().construct(buckets=buckets).save(args.output)
+    element_to_buckets = [[] for _ in range(len(elements))]
+    for i, bucket in enumerate(buckets):
+        for element in bucket:
+            element_to_buckets[element].append(i)
+
+    # Statistics about buckets
+    log.info("Number of buckets: %d", len(buckets))
+    log.info("Number of elements: %d", len(elements))
+    log.info("Average number of buckets per element: %.1f",
+             sum(map(len, element_to_buckets)) / len(element_to_buckets))
+    log.info("Min number of buckets per element: %s" % min(map(len, element_to_buckets)))
+    log.info("Max number of buckets per element: %s" % max(map(len, element_to_buckets)))
+    log.info("Running CC analysis")
+
+    unvisited_buckets = set(range(len(buckets)))
+    connected_components_element = defaultdict(set)
+
+    cc_id = 0  # connected component counter
+    while unvisited_buckets:
+        pending = {unvisited_buckets.pop()}
+        while pending:
+            bucket = pending.pop()
+            unvisited_buckets.remove(bucket)
+            elements = buckets[bucket]
+            connected_components_element[cc_id].update(elements)
+            for element in elements:
+                element_buckets = element_to_buckets[element]
+                for b_ in element_buckets:
+                    if b_ in unvisited_buckets:
+                        pending.add(b_)
+        # increase number of connected components
+        cc_id += 1
+
+    log.info("Writing %s", args.output)
+    ConnectedComponentsModel() \
+        .construct(connected_components_element, element_to_buckets, elements) \
+        .save(args.output)

@@ -9,7 +9,7 @@ from sourced.ml.repo2 import wmhash
 
 from gemini.bags import source2bags
 from gemini.cassandra_utils import reset_db
-from gemini.graph import print_hash_graph
+from gemini.graph import ccgraph
 from gemini.hasher import hash_batches
 from gemini.query import query
 from gemini.warmup import warmup
@@ -49,6 +49,8 @@ def get_parser() -> argparse.ArgumentParser:
                                help="Print the PySpark execution plans.")
         my_parser.add_argument("--pause", action="store_true",
                                help="Do not terminate in the end.")
+        my_parser.add_argument("--dzhigurda", default=0, type=int,
+                               help="Index of the examined commit in the history.")
 
     def add_features_arg(my_parser, required: bool, suffix="."):
         my_parser.add_argument(
@@ -156,11 +158,11 @@ def get_parser() -> argparse.ArgumentParser:
         help="Only clear the tables: hashes, hashtables, hashtables2. Do not touch the rest.")
 
     hashgraph_parser = subparsers.add_parser(
-        "hashgraph", help="Print all similar pairs of files according to Weighted MinHash. "
-                          "Needs | sort | uniq to eliminate duplicates.")
-    hashgraph_parser.set_defaults(handler=print_hash_graph)
+        "ccgraph", help="Load the similar pairs of files and run connected components analysis.")
+    hashgraph_parser.set_defaults(handler=ccgraph)
     add_cassandra_args(hashgraph_parser)
-    hashgraph_parser.add_argument("-o", "--output", help="Path to save asdf-file with buckets.")
+    hashgraph_parser.add_argument("-o", "--output",
+                                  help="Path to save the asdf file with connected components.")
 
     # TODO: retable [.....] -> [.] [.] [.] [.] [.]
 

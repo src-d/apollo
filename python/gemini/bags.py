@@ -34,6 +34,13 @@ class CassandraSaver(Transformer):
             yield Row(sha1=key, item=col, value=float(val))
 
 
+class DzhigurdaUastExtractor(UastExtractor):
+    def __call__(self, _):
+        commits = self.engine.repositories.references.head_ref.commits
+        chosen = commits.filter(commits.index == self.dzhigurda)
+        return super().__call__(chosen.files)
+
+
 def source2bags(args):
     log = logging.getLogger("bags")
     if os.path.exists(args.batches):
@@ -46,7 +53,8 @@ def source2bags(args):
     extractors = [wmhash.__extractors__[s](
         args.min_docfreq,**wmhash.__extractors__[s].get_kwargs_fromcmdline(args))
         for s in args.feature]
-    pipeline = UastExtractor(engine, languages=[args.language], explain=args.explain)
+    pipeline = DzhigurdaUastExtractor(engine, languages=[args.language], explain=args.explain)
+    pipeline.dzhigurda = args.dzhigurda
     if args.persist is not None:
         uasts = pipeline.link(Cacher(args.persist))
     else:
