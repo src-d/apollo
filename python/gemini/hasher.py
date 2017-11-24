@@ -120,7 +120,7 @@ def hash_batches(args):
         voc_size, args.size, seed=args.seed, devices=args.devices, verbosity=args.mhc_verbosity)
     if os.path.isfile(args.params):
         model = WeightedMinHashParameters().load(args.params)
-        libMHCUDA.minhash_cuda_assign_vars(model.rs, model.ln_cs, model.betas)
+        libMHCUDA.minhash_cuda_assign_vars(gen, model.rs, model.ln_cs, model.betas)
     else:
         log.info("Writing %s", args.params)
         params = libMHCUDA.minhash_cuda_retrieve_vars(gen)
