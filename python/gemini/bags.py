@@ -43,7 +43,9 @@ def source2bags(args):
         args.config = []
     cassandra_utils.configure(args)
     engine = create_engine("source2bags-%s" % uuid4(), args.repositories, args)
-    extractors = [wmhash.__extractors__[s](args.min_docfreq) for s in args.feature]
+    extractors = [wmhash.__extractors__[s](
+        args.min_docfreq,**wmhash.__extractors__[s].get_kwargs_fromcmdline(args))
+        for s in args.feature]
     pipeline = UastExtractor(engine, languages=[args.language], explain=args.explain)
     if args.persist is not None:
         uasts = pipeline.link(Cacher(args.persist))

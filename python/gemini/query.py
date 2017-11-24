@@ -25,7 +25,7 @@ def query(args):
         if not args.params:
             log.critical("-p / --params must be specified in file query mode")
             return 1
-        wmh, bag = hash_file(args.file, args.params, args.docfreq, args.bblfsh, args.feature)
+        wmh, bag = hash_file(args)
         htnum, band_size = calc_hashtable_params(
             args.threshold, len(wmh), args.false_positive_weight, args.false_negative_weight)
         log.info("Number of hash tables: %d", htnum)

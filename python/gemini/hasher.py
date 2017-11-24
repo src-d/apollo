@@ -151,16 +151,18 @@ def hash_batches(args):
         libMHCUDA.minhash_cuda_fini(gen)
 
 
-def hash_file(path, params_path, vocab_path, bblfsh_endpoint, extractors):
-    if not extractors:
+def hash_file(args):
+    if not args.feature:
         raise ValueError("extractors must not be empty")
     log = logging.getLogger("hash_file")
-    vocab = wmhash.OrderedDocumentFrequencies().load(vocab_path)
-    params = WeightedMinHashParameters().load(params_path)
-    log.info("Extracting UAST from %s", path)
-    uast = BblfshClient(bblfsh_endpoint).parse(path).uast
+    vocab = wmhash.OrderedDocumentFrequencies().load(args.docfreq)
+    params = WeightedMinHashParameters().load(args.params)
+    log.info("Extracting UAST from %s", args.file)
+    uast = BblfshClient(args.bblfsh).parse(args.file).uast
     log.info("Populating the bag")
-    extractors = [wmhash.__extractors__[s]() for s in extractors]
+    extractors = [wmhash.__extractors__[s](
+        args.min_docfreq, **wmhash.__extractors__[s].get_kwargs_fromcmdline(args))
+        for s in args.feature]
     bag = numpy.zeros(len(vocab), dtype=numpy.float32)
     for ex in extractors:
         ex.ndocs = vocab.docs
