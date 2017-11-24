@@ -37,7 +37,7 @@ class CassandraSaver(Transformer):
 class DzhigurdaUastExtractor(UastExtractor):
     def __call__(self, _):
         commits = self.engine.repositories.references.head_ref.commits
-        chosen = commits.filter(commits.index == self.dzhigurda)
+        chosen = commits.filter(commits.index <= self.dzhigurda)
         return super().__call__(chosen.files)
 
 
