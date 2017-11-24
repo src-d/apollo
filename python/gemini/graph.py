@@ -57,7 +57,7 @@ def ccgraph(args):
     hashtables = sorted(r.hashtable for r in rows)
     log.info("Detected %d hashtables", len(hashtables))
     buckets = []
-    elements = {}
+    element_ids = {}
     prev_len = 0
     for hashtable in hashtables:
         rows = session.execute(
@@ -65,7 +65,7 @@ def ccgraph(args):
         band = None
         bucket = []
         for row in rows:
-            eid = elements.setdefault(row.sha1, len(elements))
+            eid = element_ids.setdefault(row.sha1, len(element_ids))
             if row.value != band:
                 if band is not None:
                     buckets.append(bucket.copy())
@@ -74,22 +74,27 @@ def ccgraph(args):
                 bucket.append(eid)
                 continue
             bucket.append(eid)
+        if bucket:
+            buckets.append(bucket)
         log.info("Fetched %d, %d buckets", hashtable, len(buckets) - prev_len)
         prev_len = len(buckets)
 
-    element_to_buckets = [[] for _ in range(len(elements))]
+    element_to_buckets = [[] for _ in range(len(element_ids))]
     for i, bucket in enumerate(buckets):
         for element in bucket:
             element_to_buckets[element].append(i)
 
     # Statistics about buckets
+    levels = (logging.ERROR, logging.INFO)
     log.info("Number of buckets: %d", len(buckets))
-    log.info("Number of elements: %d", len(elements))
-    log.info("Average number of buckets per element: %.1f",
-             sum(map(len, element_to_buckets)) / len(element_to_buckets))
-    log.info("Average number of elements per bucket: %.1f", sum(map(len, buckets)) / len(buckets))
-    log.info("Min number of buckets per element: %s" % min(map(len, element_to_buckets)))
-    log.info("Max number of buckets per element: %s" % max(map(len, element_to_buckets)))
+    log.log(levels[len(element_ids) >= len(buckets[0])],
+            "Number of elements: %d", len(element_ids))
+    epb = sum(map(len, buckets)) / len(buckets)
+    log.log(levels[epb >= 1], "Average number of elements per bucket: %.1f", epb)
+    nb = min(map(len, element_to_buckets))
+    log.log(levels[nb == len(hashtables)], "Min number of buckets per element: %s", nb)
+    nb = max(map(len, element_to_buckets))
+    log.log(levels[nb == len(hashtables)], "Max number of buckets per element: %s", nb)
     log.info("Running CC analysis")
 
     unvisited_buckets = set(range(len(buckets)))
@@ -114,5 +119,5 @@ def ccgraph(args):
 
     log.info("Writing %s", args.output)
     ConnectedComponentsModel() \
-        .construct(connected_components_element, element_to_buckets, elements) \
+        .construct(connected_components_element, element_to_buckets, element_ids) \
         .save(args.output)
