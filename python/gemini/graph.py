@@ -58,8 +58,8 @@ def ccgraph(args):
     log.info("Detected %d hashtables", len(hashtables))
     buckets = []
     elements = {}
+    prev_len = 0
     for hashtable in hashtables:
-        log.info("Fetching %d", hashtable)
         rows = session.execute(
             "SELECT sha1, value FROM %s WHERE hashtable=%d" % (table, hashtable))
         band = None
@@ -67,12 +67,15 @@ def ccgraph(args):
         for row in rows:
             eid = elements.setdefault(row.sha1, len(elements))
             if row.value != band:
+                if band is not None:
+                    buckets.append(bucket.copy())
+                    bucket.clear()
                 band = row.value
-                buckets.append(bucket.copy())
-                bucket.clear()
                 bucket.append(eid)
                 continue
             bucket.append(eid)
+        log.info("Fetched %d, %d buckets", hashtable, len(buckets) - prev_len)
+        prev_len = len(buckets)
 
     element_to_buckets = [[] for _ in range(len(elements))]
     for i, bucket in enumerate(buckets):
@@ -84,6 +87,7 @@ def ccgraph(args):
     log.info("Number of elements: %d", len(elements))
     log.info("Average number of buckets per element: %.1f",
              sum(map(len, element_to_buckets)) / len(element_to_buckets))
+    log.info("Average number of elements per bucket: %.1f", sum(map(len, buckets)) / len(buckets))
     log.info("Min number of buckets per element: %s" % min(map(len, element_to_buckets)))
     log.info("Max number of buckets per element: %s" % max(map(len, element_to_buckets)))
     log.info("Running CC analysis")
@@ -96,16 +100,17 @@ def ccgraph(args):
         pending = {unvisited_buckets.pop()}
         while pending:
             bucket = pending.pop()
-            unvisited_buckets.remove(bucket)
             elements = buckets[bucket]
             connected_components_element[cc_id].update(elements)
             for element in elements:
                 element_buckets = element_to_buckets[element]
-                for b_ in element_buckets:
-                    if b_ in unvisited_buckets:
-                        pending.add(b_)
+                for b in element_buckets:
+                    if b in unvisited_buckets:
+                        pending.add(b)
+                        unvisited_buckets.remove(b)
         # increase number of connected components
         cc_id += 1
+    log.info("CC number: %d", len(connected_components_element))
 
     log.info("Writing %s", args.output)
     ConnectedComponentsModel() \
