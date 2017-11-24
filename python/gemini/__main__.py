@@ -9,7 +9,7 @@ from sourced.ml.repo2 import wmhash
 
 from gemini.bags import source2bags
 from gemini.cassandra_utils import reset_db
-from gemini.graph import ccgraph
+from gemini.graph import ccgraph, dumpcc
 from gemini.hasher import hash_batches
 from gemini.query import query
 from gemini.warmup import warmup
@@ -164,6 +164,10 @@ def get_parser() -> argparse.ArgumentParser:
     hashgraph_parser.add_argument("-o", "--output",
                                   help="Path to save the asdf file with connected components.")
 
+    dumpcc_parser = subparsers.add_parser(
+        "dumpcc", help="Output the connected components to stdout.")
+    dumpcc_parser.set_defaults(handler=dumpcc)
+    dumpcc_parser.add_argument("input", help="Path to the asdf file with CCs.")
     # TODO: retable [.....] -> [.] [.] [.] [.] [.]
 
     return parser

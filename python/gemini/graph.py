@@ -121,3 +121,12 @@ def ccgraph(args):
     ConnectedComponentsModel() \
         .construct(connected_components_element, element_to_buckets, element_ids) \
         .save(args.output)
+
+
+def dumpcc(args):
+    model = ConnectedComponentsModel().load(args.input)
+    ccs = defaultdict(list)
+    for i, cc in enumerate(model.id_to_cc):
+        ccs[cc].append(i)
+    for _, cc in sorted(ccs.items()):
+        print(" ".join(model.id_to_element[i] for i in cc))
