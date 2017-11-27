@@ -4,12 +4,13 @@ import logging
 import sys
 from time import time
 
+from igraph import Graph
 from modelforge.logs import setup_logging
 from sourced.ml.repo2 import wmhash
 
 from gemini.bags import source2bags
 from gemini.cassandra_utils import reset_db
-from gemini.graph import ccgraph, dumpcc
+from gemini.graph import find_connected_components, dumpcc, detect_communities
 from gemini.hasher import hash_batches
 from gemini.query import query
 from gemini.warmup import warmup
@@ -157,17 +158,39 @@ def get_parser() -> argparse.ArgumentParser:
         "--hashes-only", action="store_true",
         help="Only clear the tables: hashes, hashtables, hashtables2. Do not touch the rest.")
 
-    hashgraph_parser = subparsers.add_parser(
-        "ccgraph", help="Load the similar pairs of files and run connected components analysis.")
-    hashgraph_parser.set_defaults(handler=ccgraph)
-    add_cassandra_args(hashgraph_parser)
-    hashgraph_parser.add_argument("-o", "--output",
-                                  help="Path to save the asdf file with connected components.")
+    cc_parser = subparsers.add_parser(
+        "cc", help="Load the similar pairs of files and run connected components analysis.")
+    cc_parser.set_defaults(handler=find_connected_components)
+    add_cassandra_args(cc_parser)
+    cc_parser.add_argument("-o", "--output",
+                           help="Path to save the asdf file with connected components.")
 
     dumpcc_parser = subparsers.add_parser(
         "dumpcc", help="Output the connected components to stdout.")
     dumpcc_parser.set_defaults(handler=dumpcc)
     dumpcc_parser.add_argument("input", help="Path to the asdf file with CCs.")
+
+    community_parser = subparsers.add_parser(
+        "cmd", help="Run Community Detection analysis on the connected components from \"cc\".")
+    community_parser.set_defaults(handler=detect_communities)
+    community_parser.add_argument("-i", "--input", required=True,
+                                  help="The path to connected components ASDF model.")
+    community_parser.add_argument("-o", "--output", required=True,
+                                  help="Output path to the communities ASDF model.")
+    community_parser.add_argument("--edges", choices=("linear", "quadratic", "1", "2"),
+                                  default="linear",
+                                  help="The method to generate the graph's edges: bipartite - "
+                                       "linear and fast, but may not fit some the CD algorithms, "
+                                       "or all to all within a bucket - quadratic and slow, but "
+                                       "surely fits all the algorithms.")
+    cmd_choices = [k[10:] for k in dir(Graph) if k.startswith("community_")]
+    community_parser.add_argument("-a", "--algorithm", choices=cmd_choices,
+                                  default="walktrap",
+                                  help="The community detection algorithm to apply.")
+    community_parser.add_argument("-p", "--params", type=json.loads, default={},
+                                  help="Parameters for the algorithm (**kwargs, JSON format).")
+    community_parser.add_argument("--no-spark", action="store_true", help="Do not use Spark.")
+    add_spark_args(community_parser)
     # TODO: retable [.....] -> [.] [.] [.] [.] [.]
 
     return parser

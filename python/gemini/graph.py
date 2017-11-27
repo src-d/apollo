@@ -1,10 +1,15 @@
 from collections import defaultdict
+from itertools import chain
 import logging
+from uuid import uuid4
 
+from igraph import Graph
 from modelforge import Model, merge_strings, split_strings, assemble_sparse_matrix, \
     disassemble_sparse_matrix, register_model
+from modelforge.progress_bar import progress_bar
 import numpy
 from scipy.sparse import csr_matrix
+from sourced.ml.engine import create_spark
 
 from gemini.cassandra_utils import get_db
 
@@ -12,7 +17,7 @@ from gemini.cassandra_utils import get_db
 @register_model
 class ConnectedComponentsModel(Model):
     """
-    Model to store connected components.
+    Model to store the connected components.
     """
     NAME = "connected_components"
 
@@ -31,14 +36,14 @@ class ConnectedComponentsModel(Model):
         for i, element in enumerate(element_to_buckets):
             indices[pos:(pos + len(element))] = element
             indptr[i + 1] = indptr[i] + len(element)
-        self.element_to_buckets = csr_matrix((data, indices, indptr))
+        self.id_to_buckets = csr_matrix((data, indices, indptr))
         return self
 
     def _load_tree(self, tree):
         self.id_to_cc = tree["cc"]
         self.id_to_cc[0]  # do not remove - loads the array from disk
         self.id_to_element = split_strings(tree["elements"])
-        self.element_to_buckets = assemble_sparse_matrix(tree["buckets"])
+        self.id_to_buckets = assemble_sparse_matrix(tree["buckets"])
 
     def dump(self):
         return "Number of connected components: %s\nNumber of unique elements: %s" % (
@@ -46,10 +51,10 @@ class ConnectedComponentsModel(Model):
 
     def _generate_tree(self):
         return {"cc": self.id_to_cc, "elements": merge_strings(self.id_to_element),
-                "buckets": disassemble_sparse_matrix(self.element_to_buckets)}
+                "buckets": disassemble_sparse_matrix(self.id_to_buckets)}
 
 
-def ccgraph(args):
+def find_connected_components(args):
     log = logging.getLogger("graph")
     session = get_db(args)
     table = args.tables["hashtables"]
@@ -130,3 +135,111 @@ def dumpcc(args):
         ccs[cc].append(i)
     for _, cc in sorted(ccs.items()):
         print(" ".join(model.id_to_element[i] for i in cc))
+
+
+@register_model
+class CommunitiesModel(Model):
+    """
+    Model to store the node communities.
+    """
+    NAME = "communities"
+
+    def construct(self, communities, id_to_element):
+        self.communities = communities
+        self.id_to_element = id_to_element
+
+    def _load_tree(self, tree):
+        self.id_to_element = split_strings(tree["elements"])
+        data, indptr = tree["data"], tree["indptr"]
+        self.communities = [data[i:j] for i, j in zip(indptr, indptr[1:])]
+
+    def _generate_tree(self):
+        size = sum(map(len, self.communities))
+        data = numpy.zeros(size, dtype=numpy.uint32)
+        indptr = numpy.zeros(len(self.communities) + 1, dtype=numpy.int64)
+        pos = 0
+        for i, community in enumerate(self.communities):
+            data[pos:pos + len(community)] = community
+            pos += len(community)
+            indptr[i + 1] = pos
+        return {"data": data, "indptr": indptr, "elements": merge_strings(self.id_to_element)}
+
+
+def detect_communities(args):
+    log = logging.getLogger("cmd")
+    ccsmodel = ConnectedComponentsModel().load(args.input)
+    log.info("Building the connected components")
+    ccs = defaultdict(list)
+    for i, c in enumerate(ccsmodel.id_to_cc):
+        ccs[c].append(i)
+    buckmat = ccsmodel.id_to_buckets
+    buckindices = buckmat.indices
+    buckindptr = buckmat.indptr
+    linear = args.edges in ("linear", "1")
+    graphs = []
+    if not linear:
+        log.info("csr -> csc")
+        buckmat_csc = buckmat.tocsc()
+    log.info("Building %d graphs", len(ccs))
+    for vertices in progress_bar(ccs.values(), log, expected_size=len(ccs)):
+        if len(vertices) == 2:
+            communities.append(vertices)
+            continue
+        edges = []
+        nvertices = len(vertices)
+        if linear:
+            weights = []
+            bucket_weights = buckmat.sum(axis=1)
+            for i in vertices:
+                for j in range(buckindptr[i], buckindptr[i + 1]):
+                    bucket = buckindices[j] + nvertices
+                    edges.append((i, bucket))
+                    weights.append(bucket_weights[bucket])
+            nvertices += buckmat.shape[1]
+        else:
+            weights = None
+            buckets = set()
+            for i in vertices:
+                for j in range(buckindptr[i], buckindptr[i + 1]):
+                    buckets.add(buckindices[j])
+            for bucket in buckets:
+                buckverts = \
+                    buckmat_csc.indices[buckmat_csc.indptr[bucket]:buckmat_csc.indptr[bucket + 1]]
+                for i in buckverts:
+                    for j in buckverts[i:]:
+                        edges.append((i, j))
+        graph = Graph(n=nvertices, edges=edges, directed=False)
+        graph.edge_weights = weights
+        graphs.append(graph)
+    log.info("Launching the community detection")
+    detector = CommunityDetector(algorithm=args.algorithm, config=args.params)
+    if not args.no_spark:
+        spark = create_spark("cmd-%s" % uuid4(), args).sparkContext
+        communities = spark.parallelize(graphs).flatMap(detector).collect()
+    else:
+        communities = list(chain.from_iterable(progress_bar(
+            (detector(g) for g in graphs), log, expected_size=len(graphs))))
+    log.info("Overall communities: %d", len(communities))
+    log.info("Average community size: %.1f", numpy.mean([len(c) for c in communities]))
+    log.info("Max community size: %d", max(map(len, communities)))
+    log.info("Writing %s", args.output)
+    CommunitiesModel().construct(communities, ccsmodel.id_to_element).save(args.output)
+
+
+class CommunityDetector:
+    def __init__(self, algorithm, config):
+        self.algorithm = algorithm
+        self.config = config
+
+    def __call__(self, graph):
+        action = getattr(graph, "community_" + self.algorithm)
+        if self.algorithm == "infomap":
+            kwargs = {"edge_weights": graph.edge_weights}
+        elif self.algorithm == "leading_eigenvector_naive":
+            kwargs = {}
+        else:
+            kwargs = {"weights": graph.edge_weights}
+        if self.algorithm == "edge_betweenness":
+            kwargs["directed"] = False
+        result = action(**kwargs, **self.config)
+        # TODO(vmarkovtsev): convert this result into the lists of lists and yield them
