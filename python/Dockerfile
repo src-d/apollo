@@ -13,11 +13,11 @@ RUN mkdir -p /opt/nvidia && cd /opt/nvidia/ \
 RUN apt-get update && \
     apt-get install -y --no-install-suggests --no-install-recommends \
         ca-certificates locales git python3 libpython3.5 python3-dev \
-        libgomp1 libxml2 libxml2-dev \
+        libgomp1 libxml2 libxml2-dev zlib1g-dev \
         libsnappy1v5 libsnappy-dev libonig2 make gcc g++ curl openjdk-8-jre && \
     curl https://bootstrap.pypa.io/get-pip.py | python3 && \
     pip3 install --no-cache-dir PyStemmer bblfsh py4j modelforge parquet libMHCUDA datasketch cassandra_driver python-igraph && \
-    apt-get remove -y python3-dev libxml2-dev libsnappy-dev make gcc g++ curl && \
+    apt-get remove -y python3-dev libxml2-dev libsnappy-dev zlib1g-dev make gcc g++ curl && \
     apt-get remove -y *-doc *-man >/dev/null && \
     apt-get autoremove -y && \
     apt-get clean && \

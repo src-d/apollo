@@ -115,10 +115,12 @@ def hash_batches(args):
             raise ValueError("The vocabulary sizes does not match: %d != %d"
                              % (b.matrix.shape[-1], voc_size))
     log.info("Initializing the generator")
+    deferred = os.path.isfile(args.params)
     import libMHCUDA  # delayed import which requires CUDA and friends
     gen = libMHCUDA.minhash_cuda_init(
-        voc_size, args.size, seed=args.seed, devices=args.devices, verbosity=args.mhc_verbosity)
-    if os.path.isfile(args.params):
+        voc_size, args.size, seed=args.seed, devices=args.devices, verbosity=args.mhc_verbosity,
+        deferred=deferred)
+    if deferred:
         model = WeightedMinHashParameters().load(args.params)
         libMHCUDA.minhash_cuda_assign_vars(gen, model.rs, model.ln_cs, model.betas)
     else:

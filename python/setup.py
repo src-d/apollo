@@ -16,7 +16,7 @@ setup(
     keywords=["machine learning on source code", "weighted minhash", "minhash",
               "bblfsh", "babelfish"],
     install_requires=["cassandra_driver >= 3.12.0, <4.0",
-                      "libMHCUDA >= 1.1.5, <2.0",
+                      "libMHCUDA >= 2.0, <3.0",
                       "python-igraph >= 0.7, <2.0"],
                       # "sourcedml >= 0.4.0, <1.0"],
     package_data={"": ["LICENSE", "README.md"]},
