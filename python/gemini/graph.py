@@ -35,7 +35,8 @@ class ConnectedComponentsModel(Model):
         pos = 0
         for i, element in enumerate(element_to_buckets):
             indices[pos:(pos + len(element))] = element
-            indptr[i + 1] = indptr[i] + len(element)
+            pos += len(element)
+            indptr[i + 1] = pos
         self.id_to_buckets = csr_matrix((data, indices, indptr))
         return self
 
@@ -147,6 +148,7 @@ class CommunitiesModel(Model):
     def construct(self, communities, id_to_element):
         self.communities = communities
         self.id_to_element = id_to_element
+        return self
 
     def _load_tree(self, tree):
         self.id_to_element = split_strings(tree["elements"])
@@ -175,27 +177,35 @@ def detect_communities(args):
     buckmat = ccsmodel.id_to_buckets
     buckindices = buckmat.indices
     buckindptr = buckmat.indptr
+    total_nvertices = buckmat.shape[0]
     linear = args.edges in ("linear", "1")
     graphs = []
+    communities = []
     if not linear:
-        log.info("csr -> csc")
-        buckmat_csc = buckmat.tocsc()
-    log.info("Building %d graphs", len(ccs))
-    for vertices in progress_bar(ccs.values(), log, expected_size=len(ccs)):
+        log.info("Transposing the matrix")
+        buckmat_csc = buckmat.T.tocsr()
+    fat_ccs = []
+    for vertices in ccs.values():
+        if len(vertices) == 1:
+            continue
         if len(vertices) == 2:
             communities.append(vertices)
             continue
+        fat_ccs.append(vertices)
+    log.info("Building %d graphs", len(fat_ccs))
+    for vertices in progress_bar(fat_ccs, log, expected_size=len(fat_ccs)):
         edges = []
-        nvertices = len(vertices)
         if linear:
             weights = []
-            bucket_weights = buckmat.sum(axis=1)
+            bucket_weights = buckmat.sum(axis=0)
+            buckets = set()
             for i in vertices:
                 for j in range(buckindptr[i], buckindptr[i + 1]):
-                    bucket = buckindices[j] + nvertices
-                    edges.append((i, bucket))
-                    weights.append(bucket_weights[bucket])
-            nvertices += buckmat.shape[1]
+                    bucket = buckindices[j]
+                    weights.append(bucket_weights[0, bucket])
+                    bucket += total_nvertices
+                    buckets.add(bucket)
+                    edges.append((str(i), str(bucket)))
         else:
             weights = None
             buckets = set()
@@ -205,19 +215,22 @@ def detect_communities(args):
             for bucket in buckets:
                 buckverts = \
                     buckmat_csc.indices[buckmat_csc.indptr[bucket]:buckmat_csc.indptr[bucket + 1]]
-                for i in buckverts:
-                    for j in buckverts[i:]:
-                        edges.append((i, j))
-        graph = Graph(n=nvertices, edges=edges, directed=False)
+                for i, x in enumerate(buckverts):
+                    for y in buckverts[i + 1:]:
+                        edges.append((str(x), str(y)))
+            buckets.clear()
+        graph = Graph(directed=False)
+        graph.add_vertices(list(map(str, vertices + list(buckets))))
+        graph.add_edges(edges)
         graph.edge_weights = weights
         graphs.append(graph)
     log.info("Launching the community detection")
     detector = CommunityDetector(algorithm=args.algorithm, config=args.params)
     if not args.no_spark:
         spark = create_spark("cmd-%s" % uuid4(), args).sparkContext
-        communities = spark.parallelize(graphs).flatMap(detector).collect()
+        communities.extend(spark.parallelize(graphs).flatMap(detector).collect())
     else:
-        communities = list(chain.from_iterable(progress_bar(
+        communities.extend(chain.from_iterable(progress_bar(
             (detector(g) for g in graphs), log, expected_size=len(graphs))))
     log.info("Overall communities: %d", len(communities))
     log.info("Average community size: %.1f", numpy.mean([len(c) for c in communities]))
@@ -248,6 +261,6 @@ class CommunityDetector:
 
         output = [[] for _ in range(len(result.sizes()))]
         for i, memb in enumerate(result.membership):
-            output[memb].append(i)
+            output[memb].append(int(graph.vs[i]["name"]))
 
         return output
