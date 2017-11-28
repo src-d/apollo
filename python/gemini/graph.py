@@ -194,8 +194,8 @@ def detect_communities(args):
         fat_ccs.append(vertices)
     log.info("Building %d graphs", len(fat_ccs))
     for vertices in progress_bar(fat_ccs, log, expected_size=len(fat_ccs)):
-        edges = []
         if linear:
+            edges = []
             weights = []
             bucket_weights = buckmat.sum(axis=0)
             buckets = set()
@@ -207,6 +207,7 @@ def detect_communities(args):
                     buckets.add(bucket)
                     edges.append((str(i), str(bucket)))
         else:
+            edges = set()
             weights = None
             buckets = set()
             for i in vertices:
@@ -216,9 +217,11 @@ def detect_communities(args):
                 buckverts = \
                     buckmat_csc.indices[buckmat_csc.indptr[bucket]:buckmat_csc.indptr[bucket + 1]]
                 for i, x in enumerate(buckverts):
-                    for y in buckverts[i + 1:]:
-                        edges.append((str(x), str(y)))
+                    for y in buckverts:
+                        if x < y:
+                            edges.add((str(x), str(y)))
             buckets.clear()
+            edges = list(edges)
         graph = Graph(directed=False)
         graph.add_vertices(list(map(str, vertices + list(buckets))))
         graph.add_edges(edges)
