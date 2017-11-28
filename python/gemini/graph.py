@@ -242,4 +242,12 @@ class CommunityDetector:
         if self.algorithm == "edge_betweenness":
             kwargs["directed"] = False
         result = action(**kwargs, **self.config)
-        # TODO(vmarkovtsev): convert this result into the lists of lists and yield them
+
+        if hasattr(result, "as_clustering"):
+            result = result.as_clustering()
+
+        output = [[] for _ in range(len(result.sizes()))]
+        for i, memb in enumerate(result.membership):
+            output[memb].append(i)
+
+        return output

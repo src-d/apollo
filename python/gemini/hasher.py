@@ -17,6 +17,7 @@ from gemini import cassandra_utils
 # Begin code from https://github.com/ekzhu/datasketch/blob/master/datasketch/lsh.py #
 #####################################################################################
 
+
 def _false_positive_probability(threshold, b, r):
     def _probability(s):
         return 1 - (1 - s**float(r))**float(b)
