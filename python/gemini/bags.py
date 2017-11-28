@@ -51,7 +51,7 @@ def source2bags(args):
     cassandra_utils.configure(args)
     engine = create_engine("source2bags-%s" % uuid4(), args.repositories, args)
     extractors = [wmhash.__extractors__[s](
-        args.min_docfreq,**wmhash.__extractors__[s].get_kwargs_fromcmdline(args))
+        args.min_docfreq, **wmhash.__extractors__[s].get_kwargs_fromcmdline(args))
         for s in args.feature]
     pipeline = DzhigurdaUastExtractor(engine, languages=[args.language], explain=args.explain)
     pipeline.dzhigurda = args.dzhigurda
