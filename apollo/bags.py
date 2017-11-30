@@ -8,7 +8,7 @@ from sourced.ml.repo2 import wmhash
 from sourced.ml.repo2.base import UastExtractor, Transformer, Cacher, UastDeserializer, Engine
 from pyspark.sql.types import Row
 
-from gemini import cassandra_utils
+from apollo import cassandra_utils
 
 
 class BagsSaver(Transformer):

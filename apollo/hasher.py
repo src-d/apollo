@@ -11,7 +11,7 @@ from scipy.integrate import quad as integrate
 from sourced.ml.engine import create_spark
 from sourced.ml.repo2 import wmhash
 
-from gemini import cassandra_utils
+from apollo import cassandra_utils
 
 #####################################################################################
 # Begin code from https://github.com/ekzhu/datasketch/blob/master/datasketch/lsh.py #

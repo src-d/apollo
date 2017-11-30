@@ -3,7 +3,7 @@ import unittest
 
 from igraph import Graph
 
-from gemini.graph import CommunityDetector
+from apollo.graph import CommunityDetector
 
 
 class CommunityDetectorTest(unittest.TestCase):

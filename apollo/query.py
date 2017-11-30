@@ -5,8 +5,8 @@ import numpy
 
 from sourced.ml.repo2 import wmhash
 
-from gemini.cassandra_utils import get_db
-from gemini.hasher import hash_file, calc_hashtable_params
+from apollo.cassandra_utils import get_db
+from apollo.hasher import hash_file, calc_hashtable_params
 
 
 def query(args):

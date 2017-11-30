@@ -8,12 +8,12 @@ from igraph import Graph
 from modelforge.logs import setup_logging
 from sourced.ml.repo2 import wmhash
 
-from gemini.bags import source2bags
-from gemini.cassandra_utils import reset_db, sha1_to_url
-from gemini.graph import find_connected_components, dumpcc, detect_communities
-from gemini.hasher import hash_batches
-from gemini.query import query
-from gemini.warmup import warmup
+from apollo.bags import source2bags
+from apollo.cassandra_utils import reset_db, sha1_to_url
+from apollo.graph import find_connected_components, dumpcc, detect_communities
+from apollo.hasher import hash_batches
+from apollo.query import query
+from apollo.warmup import warmup
 
 
 CASSANDRA_PACKAGE = "com.datastax.spark:spark-cassandra-connector_2.11:2.0.3"
@@ -66,7 +66,7 @@ def get_parser() -> argparse.ArgumentParser:
     def add_cassandra_args(my_parser):
         my_parser.add_argument(
             "--cassandra", default="0.0.0.0:9042", help="Cassandra's host:port.")
-        my_parser.add_argument("--keyspace", default="gemini",
+        my_parser.add_argument("--keyspace", default="apollo",
                                help="Cassandra's key space.")
         my_parser.add_argument(
             "--tables", help="Table name mapping (JSON): bags, hashes, hashtables, hashtables2.")

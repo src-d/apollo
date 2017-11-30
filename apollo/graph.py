@@ -11,7 +11,7 @@ import numpy
 from scipy.sparse import csr_matrix
 from sourced.ml.engine import create_spark
 
-from gemini.cassandra_utils import get_db
+from apollo.cassandra_utils import get_db
 
 
 @register_model
