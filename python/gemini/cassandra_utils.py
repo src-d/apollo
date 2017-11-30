@@ -3,6 +3,7 @@ import logging
 import json
 import platform
 import re
+import sys
 
 import modelforge.logs
 from cassandra.cluster import Cluster, NoHostAvailable
@@ -14,7 +15,7 @@ def patch_tables(args):
         tables = args.tables
     else:
         tables = ""
-    defaults = ("bags", "hashes", "hashtables", "hashtables2")
+    defaults = ("bags", "meta", "hashes", "hashtables", "hashtables2")
     args.tables = {n: n for n in defaults}
     if tables:
         args.tables.update(json.loads(tables))
@@ -64,6 +65,8 @@ def reset_db(args):
     if not args.hashes_only:
         cql("CREATE TABLE %s (sha1 ascii, item ascii, value float, PRIMARY KEY (sha1, item))"
             % tables["bags"])
+        cql("CREATE TABLE %s (sha1 ascii, url text, PRIMARY KEY (sha1, url))"
+            % tables["meta"])
     else:
         cql("DROP TABLE IF EXISTS %s" % tables["hashes"])
         cql("DROP TABLE IF EXISTS %s" % tables["hashtables"])
@@ -73,6 +76,44 @@ def reset_db(args):
         "PRIMARY KEY (hashtable, value, sha1))" % tables["hashtables"])
     cql("CREATE TABLE %s (sha1 ascii, hashtable tinyint, value blob, "
         "PRIMARY KEY (sha1, hashtable))" % tables["hashtables2"])
+
+
+def sha1_to_url(args):
+    session = get_db(args)
+    sha1re = re.compile("([a-f0-9]{40})")
+    buffer = []
+    pending = set()
+
+    def output():
+        nonlocal buffer, pending
+        if not buffer:
+            return
+        query = [s[0] for s in buffer[:args.batch] if isinstance(s, tuple)]
+        rows = session.execute("select sha1, url from %s where sha1 in (%s)" % (
+            args.tables["meta"], ",".join("'%s'" % q for q in query)
+        ))
+        pending -= set(query)
+        urls = {r.sha1: r.url for r in rows}
+        for s in buffer[:args.batch]:
+            if isinstance(s, tuple):
+                sys.stdout.write(urls.get(s[0], s[0]))
+            else:
+                sys.stdout.write(s)
+        buffer = buffer[args.batch:]
+
+    for line in sys.stdin:
+        splitted = sha1re.split(line)
+        hashes = splitted[-2:0:-1]
+        pending.update(hashes)
+        parity = splitted[0] == hashes[-1]
+        for i, s in enumerate(splitted):
+            if i % 2 == parity:
+                buffer.append(s)
+            else:
+                buffer.append((s,))
+        while len(pending) > args.batch:
+            output()
+    output()
 
 
 class ColorFormatter(logging.Formatter):

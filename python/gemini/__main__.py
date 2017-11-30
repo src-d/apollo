@@ -9,7 +9,7 @@ from modelforge.logs import setup_logging
 from sourced.ml.repo2 import wmhash
 
 from gemini.bags import source2bags
-from gemini.cassandra_utils import reset_db
+from gemini.cassandra_utils import reset_db, sha1_to_url
 from gemini.graph import find_connected_components, dumpcc, detect_communities
 from gemini.hasher import hash_batches
 from gemini.query import query
@@ -45,7 +45,7 @@ def get_parser() -> argparse.ArgumentParser:
         my_parser.add_argument(
             "--bblfsh", default="localhost", help="Babelfish server's address.")
         my_parser.add_argument(
-            "--engine", default="0.1.8", help="source{d} engine version.")
+            "--engine", default="0.2.0", help="source{d} engine version.")
         my_parser.add_argument("--explain", action="store_true",
                                help="Print the PySpark execution plans.")
         my_parser.add_argument("--pause", action="store_true",
@@ -191,6 +191,13 @@ def get_parser() -> argparse.ArgumentParser:
                                   help="Parameters for the algorithm (**kwargs, JSON format).")
     community_parser.add_argument("--no-spark", action="store_true", help="Do not use Spark.")
     add_spark_args(community_parser)
+
+    urls_parser = subparsers.add_parser("urls", help="Convert all sha1 from stdin to URLs.")
+    urls_parser.set_defaults(handler=sha1_to_url)
+    urls_parser.add_argument("--batch", type=int, default=100,
+                             help="Number of hashes to query at a time.")
+    add_cassandra_args(urls_parser)
+
     # TODO: retable [.....] -> [.] [.] [.] [.] [.]
 
     return parser
