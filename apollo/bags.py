@@ -41,7 +41,7 @@ class MetadataSaver(Transformer):
         self.table = table
 
     def __call__(self, head):
-        rows = head.map(lambda x: Row(sha1=x.blob_id, url=self.format_url(x)))
+        rows = head.rdd.map(lambda x: Row(sha1=x.blob_id, url=self.format_url(x)))
         if self.explained:
             self._log.info("toDebugString():\n%s", rows.toDebugString().decode())
         rows.toDF() \
