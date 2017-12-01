@@ -1,6 +1,9 @@
 Apollo
 ======
 
+Advanced code deduplicator from hell. Powered by [source\{d\} ML](https://github.com/src-d/ml),
+[source\{d\} engine](https://github.com/src-d/engine) and [minhashcuda](https://github.com/src-d/minhashcuda).
+
 ### Installation
 
 ```
@@ -71,3 +74,7 @@ docker run -it --rm -v /path/to/io:/io srcd/apollo cmd -i /io/ccs.asdf -o /io/co
 docker run -it --rm -v /path/to/io:/io srcd/apollo dumpcmd -o /io/communities.asdf | docker -it --rm \
 --link scylla srcd/apollo urls --cassandra scylla:9042 
 ```
+
+## License
+
+GPL.
