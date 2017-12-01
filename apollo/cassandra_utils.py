@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime
 import logging
 import json
@@ -93,10 +94,18 @@ def sha1_to_url(args):
             args.tables["meta"], ",".join("'%s'" % q for q in query)
         ))
         pending -= set(query)
-        urls = {r.sha1: r.url for r in rows}
+        urls = defaultdict(list)
+        for r in rows:
+            urls[r.sha1].append(r.url)
         for s in buffer[:args.batch]:
             if isinstance(s, tuple):
-                sys.stdout.write(urls.get(s[0], s[0]))
+                myurls = urls.get(s[0])
+                if not myurls:
+                    sys.stdout.write(s[0])
+                elif len(myurls) == 1:
+                    sys.stdout.write(myurls[0])
+                else:
+                    sys.stdout.write("[%s]" % " ".join(myurls))
             else:
                 sys.stdout.write(s)
         buffer = buffer[args.batch:]
