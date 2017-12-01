@@ -114,7 +114,10 @@ def sha1_to_url(args):
         splitted = sha1re.split(line)
         hashes = splitted[-2:0:-1]
         pending.update(hashes)
-        parity = splitted[0] == hashes[-1]
+        if hashes:
+            parity = splitted[0] == hashes[-1]
+        else:
+            parity = bool(sha1re.match(splitted[0]))
         for i, s in enumerate(splitted):
             if i % 2 == parity:
                 buffer.append(s)

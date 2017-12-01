@@ -17,29 +17,57 @@ docker exec -it bblfshd bblfshctl driver install --all
 ### Bags
 
 ```
-docker run -it --rm -v /path/to/io:/io --link bblfshd --link scylla srcd/apollo bags -r /io/siva --batches /io/batches --docfreq /io/docfreq.asdf -f id -l Java -s 'local[*]' --min-docfreq 5 --bblfsh bblfshd --cassandra scylla:9042 --persist MEMORY_ONLY
+docker run -it --rm -v /path/to/io:/io --link bblfshd --link scylla srcd/apollo bags -r /io/siva \
+--batches /io/bags --docfreq /io/bags/docfreq.asdf -f id -f lit -f uast2seq --uast2seq-seq-len 4 \
+-l Java -s 'local[*]' --min-docfreq 5 --bblfsh bblfshd --cassandra scylla:9042 --persist MEMORY_ONLY \
+--config spark.executor.memory=4G --config spark.driver.memory=10G --config spark.driver.maxResultSize=4G
 ```
 
 ### Hash
 
 ```
-docker run -it --rm -v /path/to/io:/io --link scylla srcd/apollo hash /io/batches -p /io/params.asdf -t 0.9 --cassandra scylla:9042
+docker run -it --rm -v /path/to/io:/io --link scylla srcd/apollo hash /io/batches -p /io/bags/params.asdf \
+-t 0.8 --cassandra scylla:9042
 ```
 
 ### Query sha1
 
 ```
-docker run -it --rm -v /path/to/io:/io --link scylla srcd/apollo query -i ef8b407d95028e94ada6fe18badeb44c9d1bfe22 --precise --docfreq /io/docfreq.asdf -t 0.9 --cassandra scylla:9042
+docker run -it --rm -v /path/to/io:/io --link scylla srcd/apollo query -i <sha1> --precise \
+--docfreq /io/bags/docfreq.asdf -t 0.8 --cassandra scylla:9042 | docker -it --rm --link scylla \
+srcd/apollo urls --cassandra scylla:9042
 ```
 
 ### Query file
 
 ```
-docker run -it --rm -v /path/to/io:/io -v .:/q --link bblfshd --link scylla srcd/apollo query -f /q/myfile.java --bblfsh bblfshd --cassandra scylla:9042 --precise --docfreq /io/docfreq.asdf --params /io/params.asdf -t 0.9
+docker run -it --rm -v /path/to/io:/io -v .:/q --link bblfshd --link scylla srcd/apollo query \
+-f /q/myfile.java --bblfsh bblfshd --cassandra scylla:9042 --precise --docfreq /io/docfreq.asdf \
+--params /io/params.asdf -t 0.9
 ```
 
-### Dump hash graph
+### Connected components
 
 ```
-docker run -it --rm --link scylla srcd/apollo hashgraph --cassandra scylla:9042 | sort | uniq > graph.txt
+docker run -it --rm -v /path/to/io:/io --link scylla srcd/apollo cc -o /io/ccs.asdf
+```
+
+### Dump connected components
+
+```
+docker run -it --rm -v /path/to/io:/io srcd/apollo dumpcc -o /io/ccs.asdf | docker -it --rm \
+--link scylla srcd/apollo urls --cassandra scylla:9042 
+```
+
+### Community detection
+
+```
+docker run -it --rm -v /path/to/io:/io srcd/apollo cmd -i /io/ccs.asdf -o /io/communities.asdf -s 'local[*]'
+```
+
+### Dump communities (final report)
+
+```
+docker run -it --rm -v /path/to/io:/io srcd/apollo dumpcmd -o /io/communities.asdf | docker -it --rm \
+--link scylla srcd/apollo urls --cassandra scylla:9042 
 ```

@@ -267,3 +267,12 @@ class CommunityDetector:
             output[memb].append(int(graph.vs[i]["name"]))
 
         return output
+
+
+def dumpcmd(args):
+    model = CommunitiesModel().load(args.input)
+    id_to_element = model.id_to_element
+    for community in model.communities:
+        s = " ".join(id_to_element[i] for i in community if i < len(id_to_element))
+        if s:
+            print(s)

@@ -10,7 +10,7 @@ from sourced.ml.repo2 import wmhash
 
 from apollo.bags import source2bags
 from apollo.cassandra_utils import reset_db, sha1_to_url
-from apollo.graph import find_connected_components, dumpcc, detect_communities
+from apollo.graph import find_connected_components, dumpcc, detect_communities, dumpcmd
 from apollo.hasher import hash_batches
 from apollo.query import query
 from apollo.warmup import warmup
@@ -191,6 +191,11 @@ def get_parser() -> argparse.ArgumentParser:
                                   help="Parameters for the algorithm (**kwargs, JSON format).")
     community_parser.add_argument("--no-spark", action="store_true", help="Do not use Spark.")
     add_spark_args(community_parser)
+
+    dumpcmd_parser = subparsers.add_parser(
+        "dumpcmd", help="Output the detected communities to stdout.")
+    dumpcmd_parser.set_defaults(handler=dumpcmd)
+    dumpcmd_parser.add_argument("input", help="Path to the asdf file with communities.")
 
     urls_parser = subparsers.add_parser("urls", help="Convert all sha1 from stdin to URLs.")
     urls_parser.set_defaults(handler=sha1_to_url)
