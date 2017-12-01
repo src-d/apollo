@@ -84,12 +84,13 @@ def sha1_to_url(args):
     sha1re = re.compile("([a-f0-9]{40})")
     buffer = []
     pending = set()
+    batch_size = args.batch * 2  # 50% are hashes
 
     def output():
         nonlocal buffer, pending
         if not buffer:
             return
-        query = [s[0] for s in buffer[:args.batch] if isinstance(s, tuple)]
+        query = [s[0] for s in buffer[:batch_size] if isinstance(s, tuple)]
         rows = session.execute("select sha1, url from %s where sha1 in (%s)" % (
             args.tables["meta"], ",".join("'%s'" % q for q in query)
         ))
@@ -97,7 +98,7 @@ def sha1_to_url(args):
         urls = defaultdict(list)
         for r in rows:
             urls[r.sha1].append(r.url)
-        for s in buffer[:args.batch]:
+        for s in buffer[:batch_size]:
             if isinstance(s, tuple):
                 myurls = urls.get(s[0])
                 if not myurls:
@@ -108,7 +109,7 @@ def sha1_to_url(args):
                     sys.stdout.write("[%s]" % " ".join(myurls))
             else:
                 sys.stdout.write(s)
-        buffer = buffer[args.batch:]
+        buffer = buffer[batch_size:]
 
     for line in sys.stdin:
         splitted = sha1re.split(line)
@@ -117,23 +118,24 @@ def sha1_to_url(args):
         if hashes:
             parity = splitted[0] == hashes[-1]
         else:
-            parity = bool(sha1re.match(splitted[0]))
+            parity = 0  # there is always a trailing \n
         for i, s in enumerate(splitted):
             if i % 2 == parity:
                 buffer.append(s)
             else:
                 buffer.append((s,))
-        while len(pending) > args.batch:
+        while len(buffer) > batch_size:
             output()
-    output()
+    while buffer:
+        output()
 
 
 class ColorFormatter(logging.Formatter):
     """
     logging Formatter which prints messages with colors.
     """
-    GREEN_MARKERS = [' ok', "ok:", 'finished', 'completed', 'ready',
-                     'done', 'running', 'success', 'saved']
+    GREEN_MARKERS = [" ok", "ok:", "finished", "completed", "ready",
+                     "done", "running", "success", "saved"]
     GREEN_RE = re.compile("|".join(GREEN_MARKERS))
     BEER_MUG = platform.uname().release.endswith("-moby")
     FUR_TREE = datetime.now().month == 12 and datetime.now().day >= 8
