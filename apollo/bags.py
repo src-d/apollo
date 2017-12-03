@@ -5,7 +5,9 @@ from uuid import uuid4
 
 from sourced.ml.engine import create_engine
 from sourced.ml.repo2 import wmhash
-from sourced.ml.repo2.base import UastExtractor, Transformer, Cacher, UastDeserializer, Engine
+from sourced.ml.repo2.base import UastExtractor, Transformer, Cacher, UastDeserializer, Engine, \
+    FieldsSelector, ParquetSaver
+
 from pyspark.sql.types import Row
 
 from apollo import cassandra_utils
@@ -67,8 +69,28 @@ class DzhigurdaFiles(Transformer):
 
     def __call__(self, engine):
         commits = engine.repositories.references.head_ref.commits
-        chosen = commits.filter(commits.index <= self.dzhigurda)
+        if self.dzhigurda < 0:
+            # Use all available commits
+            chosen = commits
+        else:
+            chosen = commits.filter(commits.index <= self.dzhigurda)
         return chosen.tree_entries.blobs
+
+
+def preprocess_source(args):
+    log = logging.getLogger("preprocess_source")
+    if os.path.exists(args.batches):
+        log.critical("%s must not exist", args.batches)
+        return 1
+    if not args.config:
+        args.config = []
+    engine = create_engine("source2bags-%s" % uuid4(), args.repositories, args)
+    pipeline = Engine(engine, explain=args.explain).link(DzhigurdaFiles(args.dzhigurda))
+    uasts = pipeline.link(UastExtractor(languages=[args.language]))
+    fields = uasts.link(FieldsSelector(fields=args.fields))
+    saver = fields.link(ParquetSaver(save_loc=args.batches))
+
+    saver.explode()
 
 
 def source2bags(args):
