@@ -4,14 +4,17 @@ import logging
 from uuid import uuid4
 
 from igraph import Graph
+
 from modelforge import Model, merge_strings, split_strings, assemble_sparse_matrix, \
     disassemble_sparse_matrix, register_model
 from modelforge.progress_bar import progress_bar
 import numpy
+from pyspark.sql.types import Row
 from scipy.sparse import csr_matrix
 from sourced.ml.engine import create_spark
 
-from apollo.cassandra_utils import get_db
+from apollo.cassandra_utils import get_db, patch_tables
+from apollo.query import weighted_jaccard
 
 
 @register_model
@@ -237,6 +240,7 @@ def detect_communities(args):
             (detector(g) for g in graphs), log, expected_size=len(graphs))))
     log.info("Overall communities: %d", len(communities))
     log.info("Average community size: %.1f", numpy.mean([len(c) for c in communities]))
+    log.info("Median community size: %.1f", numpy.median([len(c) for c in communities]))
     log.info("Max community size: %d", max(map(len, communities)))
     log.info("Writing %s", args.output)
     CommunitiesModel().construct(communities, ccsmodel.id_to_element).save(args.output)
@@ -276,3 +280,69 @@ def dumpcmd(args):
         s = " ".join(id_to_element[i] for i in community if i < len(id_to_element))
         if s:
             print(s)
+
+
+class CommunityEvaluator:
+    def __init__(self, threshold, vocabulary_size):
+        self.threshold = threshold
+        self.vocabulary_size = vocabulary_size
+
+    def __call__(self, community):
+        cid, contents = community
+        elements = defaultdict(list)
+        for t in contents:
+            elements[t[0]].append(t[1:])
+        if len(elements) == 1:
+            return (0,) * 4
+        for key, vals in elements.items():
+            vec  = numpy.zeros(self.vocabulary_size, dtype=numpy.float32)
+            for i, w in vals:
+                vec[i] = w
+            elements[key] = vec
+        misses = 0
+        loss = 0
+        for x, e1 in elements.items():
+            for y, e2 in elements.items():
+                if x >= y:
+                    continue
+                sim = weighted_jaccard(e1, e2)
+                if sim < self.threshold:
+                    loss += (sim - self.threshold) ** 2
+                    misses += 1
+        count = len(elements) * (len(elements) - 1) / 2
+        return misses, misses / count, loss, loss / count
+
+
+def evaluate_communities(args):
+    log = logging.getLogger("evalcc")
+    model = CommunitiesModel().load(args.input)
+    patch_tables(args)
+    spark = create_spark("evalcc-%s" % uuid4(), args)
+    log.info("Preparing the communities' RDD")
+    items = []
+    for i, c in progress_bar(enumerate(model.communities), log,
+                             expected_size=len(model.communities)):
+        for m in c:
+            if m < len(model.id_to_element):
+                items.append(Row(sha1=model.id_to_element[m], community=i))
+    log.info("Running")
+    items_in_spark = spark.sparkContext.parallelize(items).toDF()
+    bags = spark \
+        .read \
+        .format("org.apache.spark.sql.cassandra") \
+        .options(table=args.tables["bags"], keyspace=args.keyspace) \
+        .load()
+    log.info("Loaded the bags, calculating the vocabulary")
+    vocabulary = bags.drop("sha1", "value").distinct().rdd.map(lambda x: x.item).collect()
+    vocabulary = {v: i for i, v in enumerate(vocabulary)}
+    log.info("Vocabulary size: %d", len(vocabulary))
+    element_to_id = {e: i for i, e in enumerate(model.id_to_element)}
+    metrics = items_in_spark.join(bags, "sha1").rdd \
+        .map(lambda r: (r.community, (element_to_id[r.sha1], vocabulary[r.item], r.value))) \
+        .groupByKey() \
+        .map(CommunityEvaluator(args.threshold, len(vocabulary))) \
+        .reduce(lambda v1, v2: [v1[i] + v2[i] for i in range(4)])
+    log.info("Total misses: %d", metrics[0])
+    log.info("Average normalized misses: %f", metrics[1] / len(model.communities))
+    log.info("Total loss: %f", metrics[2])
+    log.info("Average normalized loss: %f", numpy.sqrt(metrics[3] / len(model.communities)))

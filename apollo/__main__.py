@@ -10,7 +10,8 @@ from sourced.ml.repo2 import wmhash
 
 from apollo.bags import source2bags
 from apollo.cassandra_utils import reset_db, sha1_to_url
-from apollo.graph import find_connected_components, dumpcc, detect_communities, dumpcmd
+from apollo.graph import find_connected_components, dumpcc, detect_communities, dumpcmd, \
+    evaluate_communities
 from apollo.hasher import hash_batches
 from apollo.query import query
 from apollo.warmup import warmup
@@ -202,6 +203,18 @@ def get_parser() -> argparse.ArgumentParser:
     urls_parser.add_argument("--batch", type=int, default=100,
                              help="Number of hashes to query at a time.")
     add_cassandra_args(urls_parser)
+
+    evalcc_parser = subparsers.add_parser(
+        "evalcc", help="Evaluate the communities: calculate the precise similarity and the "
+                       "fitness metric.")
+    evalcc_parser.set_defaults(handler=evaluate_communities)
+    evalcc_parser.add_argument("-t", "--threshold", required=True, type=float,
+                               help="Jaccard similarity threshold.")
+    evalcc_parser.add_argument("-i", "--input", required=True,
+                               help="Path to the communities model.")
+
+    add_spark_args(evalcc_parser)
+    add_cassandra_args(evalcc_parser)
 
     # TODO: retable [.....] -> [.] [.] [.] [.] [.]
 
