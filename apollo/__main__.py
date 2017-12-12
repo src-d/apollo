@@ -8,7 +8,7 @@ from igraph import Graph
 from modelforge.logs import setup_logging
 from sourced.ml.repo2 import wmhash
 
-from apollo.bags import source2bags
+from apollo.bags import preprocess_source, source2bags
 from apollo.cassandra_utils import reset_db, sha1_to_url
 from apollo.graph import find_connected_components, dumpcc, detect_communities, dumpcmd, \
     evaluate_communities
@@ -88,6 +88,25 @@ def get_parser() -> argparse.ArgumentParser:
                                     "for the Jaccard similarity threshold.")
 
     subparsers = parser.add_subparsers(help="Commands", dest="command")
+
+    preprocessing_parser = subparsers.add_parser(
+        "preprocess", help="Generate the dataset with good candidates for duplication.")
+    preprocessing_parser.set_defaults(handler=preprocess_source)
+    preprocessing_parser.add_argument(
+        "-r", "--repositories", required=True,
+        help="The path to the siva files with repositories.")
+    preprocessing_parser.add_argument(
+        "-o", "--output", required=True,
+        help="[OUT] The path to the Parquet files with bag batches.")
+    preprocessing_parser.add_argument(
+        "-l", "--language", choices=("Java", "Python"),
+        help="The programming language to analyse.")
+    default_fields = ["blob_id", "repository_id", "content", "path", "commit_hash", "uast"]
+    preprocessing_parser.add_argument(
+        "-f", "--fields", nargs="+", default=default_fields,
+        help="Fields to select from DF to save.")
+    add_engine_args(preprocessing_parser)
+
     source2bags_parser = subparsers.add_parser(
         "bags", help="Convert source code to weighted sets.")
     source2bags_parser.set_defaults(handler=source2bags)
@@ -239,6 +258,7 @@ def main():
 
         handler = print_usage
     return handler(args)
+
 
 if __name__ == "__main__":
     sys.exit(main())

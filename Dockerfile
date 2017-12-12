@@ -32,6 +32,7 @@ ADD apollo/ /packages/apollo/apollo/
 ADD setup.py /packages/apollo
 
 ENV PYTHONPATH /packages:/spark/python
+ENV LANG en_US.UTF-8
 WORKDIR /packages
 
 RUN touch sourced/__init__.py && pip3 install --no-deps -e apollo/ && apollo warmup -s 'local[*]'
