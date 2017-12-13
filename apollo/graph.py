@@ -12,7 +12,7 @@ from modelforge.progress_bar import progress_bar
 import numpy
 from pyspark.sql.types import Row
 from scipy.sparse import csr_matrix
-from sourced.ml.engine import create_spark
+from sourced.ml.utils import create_spark
 
 from apollo.cassandra_utils import get_db, patch_tables, BatchedHashResolver, Session
 from apollo.query import weighted_jaccard, stream_template

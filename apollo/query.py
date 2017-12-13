@@ -5,7 +5,7 @@ import sys
 
 import jinja2
 import numpy
-from sourced.ml.repo2 import wmhash
+from sourced.ml.models import OrderedDocumentFrequencies
 
 from apollo.cassandra_utils import get_db, BatchedHashResolver
 from apollo.hasher import hash_file, calc_hashtable_params
@@ -44,7 +44,7 @@ def query(args):
     log.info("Fetched %d items", len(similar))
     if args.precise:
         # Precise bags
-        vocab = wmhash.OrderedDocumentFrequencies().load(args.docfreq)
+        vocab = OrderedDocumentFrequencies().load(args.docfreq)
         log.info("Calculating the precise result")
         if args.id:
             rows = session.execute(
