@@ -6,7 +6,7 @@ from time import time
 
 from igraph import Graph
 from modelforge.logs import setup_logging
-from sourced.ml.repo2 import wmhash
+from sourced.ml import extractors
 
 from apollo.bags import preprocess_source, source2bags
 from apollo.cassandra_utils import reset_db, sha1_to_url
@@ -57,9 +57,9 @@ def get_parser() -> argparse.ArgumentParser:
     def add_features_arg(my_parser, required: bool, suffix="."):
         my_parser.add_argument(
             "-f", "--feature", nargs="+",
-            choices=[ex.NAME for ex in wmhash.__extractors__.values()],
+            choices=[ex.NAME for ex in extractors.__extractors__.values()],
             required=required, help="The feature extraction scheme to apply" + suffix)
-        for ex in wmhash.__extractors__.values():
+        for ex in extractors.__extractors__.values():
             for opt, val in ex.OPTS.items():
                 my_parser.add_argument("--%s-%s" % (ex.NAME, opt), default=val, type=json.loads,
                                        help="%s's kwarg" % ex.__name__)
