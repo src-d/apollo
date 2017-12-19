@@ -17,6 +17,7 @@ from apollo.query import query
 from apollo.warmup import warmup
 
 
+ENGINE_VERSION = "0.3.0"
 CASSANDRA_PACKAGE = "com.datastax.spark:spark-cassandra-connector_2.11:2.0.3"
 
 
@@ -46,7 +47,7 @@ def get_parser() -> argparse.ArgumentParser:
         my_parser.add_argument(
             "--bblfsh", default="localhost", help="Babelfish server's address.")
         my_parser.add_argument(
-            "--engine", default="0.2.0", help="source{d} engine version.")
+            "--engine", default=ENGINE_VERSION, help="source{d} engine version.")
         my_parser.add_argument("--explain", action="store_true",
                                help="Print the PySpark execution plans.")
         my_parser.add_argument("--pause", action="store_true",
