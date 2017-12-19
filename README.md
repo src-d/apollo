@@ -71,7 +71,7 @@ docker run -it --rm -v /path/to/io:/io srcd/apollo cmd -i /io/ccs.asdf -o /io/co
 ### Dump communities (final report)
 
 ```
-docker run -it --rm -v /path/to/io:/io srcd/apollo dumpcmd -o /io/communities.asdf | docker -it --rm \
+docker run -it --rm -v /path/to/io:/io srcd/apollo dumpcmd /io/communities.asdf | docker -it --rm \
 --link scylla srcd/apollo urls --cassandra scylla:9042 
 ```
 
