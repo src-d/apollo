@@ -17,7 +17,7 @@ from apollo.query import query
 from apollo.warmup import warmup
 
 
-ENGINE_VERSION = "0.3.0"
+ENGINE_VERSION = "0.2.0"
 CASSANDRA_PACKAGE = "com.datastax.spark:spark-cassandra-connector_2.11:2.0.3"
 
 
@@ -28,8 +28,7 @@ def get_parser() -> argparse.ArgumentParser:
     :return: Parser
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--log-level", default="INFO",
-                        choices=logging._nameToLevel,
+    parser.add_argument("--log-level", default="INFO", choices=logging._nameToLevel,
                         help="Logging verbosity.")
 
     def add_spark_args(my_parser):
@@ -41,6 +40,9 @@ def get_parser() -> argparse.ArgumentParser:
             "--package", nargs="+", default=[CASSANDRA_PACKAGE], help="Additional Spark package.")
         my_parser.add_argument(
             "--spark-local-dir", default="/tmp/spark", help="Spark local directory.")
+        my_parser.add_argument("--spark-log-level", default="WARN", choices=(
+            "ALL", "DEBUG", "ERROR", "FATAL", "INFO", "OFF", "TRACE", "WARN"),
+                               help="Spark log level")
 
     def add_engine_args(my_parser):
         add_spark_args(my_parser)
