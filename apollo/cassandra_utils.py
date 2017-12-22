@@ -1,10 +1,8 @@
-from collections import defaultdict
 from datetime import datetime
 import logging
 import json
 import platform
 import re
-import sys
 from typing import Iterable
 
 import modelforge.logs
@@ -24,7 +22,11 @@ def patch_tables(args):
 
 
 def configure(args):
-    cas_host, cas_port = args.cassandra.split(":")
+    try:
+        cas_host, cas_port = args.cassandra.split(":")
+    except ValueError:
+        cas_host = args.cassandra
+        cas_port = "9042"
     args.config.append("spark.cassandra.connection.host=" + cas_host)
     args.config.append("spark.cassandra.connection.port=" + cas_port)
     patch_tables(args)
