@@ -69,8 +69,8 @@ def reset_db(args):
     if not args.hashes_only:
         cql("CREATE TABLE %s (sha1 ascii, item ascii, value float, PRIMARY KEY (sha1, item))"
             % tables["bags"])
-        cql("CREATE TABLE %s (sha1 ascii, url text, PRIMARY KEY (sha1, url))"
-            % tables["meta"])
+        cql("CREATE TABLE %s (sha1 ascii, repo text, commit ascii, path text, "
+            "PRIMARY KEY (sha1, repo))" % tables["meta"])
     else:
         cql("DROP TABLE IF EXISTS %s" % tables["hashes"])
         cql("DROP TABLE IF EXISTS %s" % tables["hashtables"])
@@ -117,7 +117,7 @@ class BatchedHashResolver:
             meta = False
         if not items:
             raise StopIteration()
-        query = "select sha1, url from %s where sha1 in (%s)" % (
+        query = "select sha1, repo, commit, path from %s where sha1 in (%s)" % (
             self.table, ",".join("'%s'" % h for h in items))
         self._log.debug("%s in (%d)", query[:query.find(" in (")], len(items))
         rows = self.session.execute(query)
@@ -133,7 +133,8 @@ class BatchedHashResolver:
                 i = items[r.sha1]
                 m = None
             # reverse order - we will pop() in __next__
-            buffer[l - i - 1] = (r.sha1, r.url, m) if meta else (r.sha1, r.url)
+            tr = r.sha1, (r.repo, r.commit, r.path)
+            buffer[l - i - 1] = (tr + (m,)) if meta else tr
         self._log.debug("-> %d", count)
 
 

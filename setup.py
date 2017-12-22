@@ -19,6 +19,7 @@ setup(
               "bblfsh", "babelfish"],
     install_requires=["cassandra_driver >= 3.12.0, <4.0",
                       "libMHCUDA >= 2.0, <3.0",
+                      "jinja2 >=2.0, <3.0",
                       "python-igraph >= 0.7, <2.0"],
                       # "sourcedml >= 0.4.0, <1.0"],
     package_data={"": ["LICENSE", "README.md"] + glob(path.join("apollo", "*.jinja2"))},

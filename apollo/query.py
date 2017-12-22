@@ -79,6 +79,14 @@ def weighted_jaccard(vec1, vec2):
     return numpy.minimum(vec1, vec2).sum() / numpy.maximum(vec1, vec2).sum()
 
 
+def format_url(repo, commit, path):
+    if repo.startswith("github.com"):
+        return "https://%s/blob/%s/%s" % (repo, commit, path)
+    if repo.startswith("bitbucket.org"):
+        return "https://%s/src/%s/%s" % (repo, commit, path)
+    return "[%s %s %s]" % (repo, commit, path)
+
+
 def stream_template(name, dest, **kwargs):
     log = logging.getLogger("jinja2")
     log.info("Loading the template")
@@ -91,4 +99,4 @@ def stream_template(name, dest, **kwargs):
     )
     template = loader.load(env, name)
     log.info("Rendering")
-    template.stream(**kwargs).dump(dest)
+    template.stream(**kwargs, format_url=format_url).dump(dest)

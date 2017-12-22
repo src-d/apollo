@@ -289,13 +289,13 @@ class BatchedCommunityResolver:
     def __next__(self):
         pci = self._prev[-1]
         com = [self._prev[:-1]] if pci is not None else []
-        for sha1, url, ci in self.resolver:
+        for sha1, info, ci in self.resolver:
             if pci is None:
                 pci = ci
             if pci == ci:
-                com.append((sha1, url))
+                com.append((sha1, info))
             else:
-                self._prev = sha1, url, ci
+                self._prev = sha1, info, ci
                 return com
         if com and pci is not None:
             self._prev = None, None, None
