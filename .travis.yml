@@ -1,0 +1,41 @@
+language: python
+sudo: false
+services:
+- docker
+cache:
+  directories:
+  - "$HOME/.cache/pip"
+_install: &_install
+  - gimme 1.8
+  - source ~/.gimme/envs/latest.env
+  - pip install --upgrade pip
+  - pip install -r requirements.txt codecov
+  - pip install -e .
+_coverage: &_coverage
+  - SCRIPT="coverage run --concurrency=multiprocessing -m unittest discover && coverage combine"
+matrix:
+  include:
+    - python: 3.4
+      env: *_coverage
+      install: *_install
+    - python: 3.5
+      env: *_coverage
+      install: *_install
+    - python: 3.6
+      env: SCRIPT="pep8 --max-line-length=99 ."
+      install: pip install pep8
+    - python: 3.6
+      env: *_coverage
+      install: *_install
+      after_success:
+        - codecov
+  fast_finish: true
+before_script:
+- docker run -d --privileged -p 9432:9432 --name bblfshd bblfsh/bblfshd
+- docker exec -it bblfshd bblfshctl driver install --all
+- docker run --name scylla -p 9042:9042 -d scylladb/scylla --developer-mode=1
+script:
+- echo Skipped
+#- (eval "$SCRIPT")
+notifications:
+  email: false

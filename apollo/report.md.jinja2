@@ -1,0 +1,18 @@
+# Code similarity report
+
+### Model
+Path: `{{ model_path }}`
+
+Items: {{ model.id_to_element | length }}
+
+Cardinality: {{ model.communities | length }}
+
+### Communities
+{% for com in communities %}
+
+| SHA1 | URL |
+|:----:|:----|
+    {% for sha1, url in com | sort %}
+| `{{ sha1 }}` | [link]({{ url }}) |
+    {% endfor %}
+{% endfor %}
