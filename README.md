@@ -79,6 +79,11 @@ docker run -d --name bblfshd --privileged -p 9432:9432 -v /var/lib/bblfshd:/var/
 docker exec -it bblfshd bblfshctl driver install --all
 ```
 
+You are going to need [grip](https://github.com/joeyespo/grip) to instantly render Markdown reports
+in your browser. There multiple Docker options available, e.g.
+[1](https://github.com/psycofdj/docker-grip), [2](https://github.com/fstab/docker-grip),
+[3](https://github.com/kba/grip-docker).
+
 ### Bags
 
 ```
@@ -108,7 +113,7 @@ srcd/apollo urls --cassandra scylla:9042
 ```
 docker run -it --rm -v /path/to/io:/io -v .:/q --link bblfshd --link scylla srcd/apollo query \
 -f /q/myfile.java --bblfsh bblfshd --cassandra scylla:9042 --precise --docfreq /io/docfreq.asdf \
---params /io/params.asdf -t 0.9
+--params /io/params.asdf -t 0.9 | grip -b -
 ```
 
 ### Connected components
@@ -133,8 +138,7 @@ docker run -it --rm -v /path/to/io:/io srcd/apollo cmd -i /io/ccs.asdf -o /io/co
 ### Dump communities (final report)
 
 ```
-docker run -it --rm -v /path/to/io:/io srcd/apollo dumpcmd /io/communities.asdf | docker -it --rm \
---link scylla srcd/apollo urls --cassandra scylla:9042 
+docker run -it --rm -v /path/to/io:/io srcd/apollo dumpcmd /io/communities.asdf | grip -b -
 ```
 
 ## License
