@@ -72,8 +72,8 @@ class DzhigurdaFiles(Transformer):
 
 def preprocess_source(args):
     log = logging.getLogger("preprocess_source")
-    if os.path.exists(args.batches):
-        log.critical("%s must not exist", args.batches)
+    if os.path.exists(args.output):
+        log.critical("%s must not exist", args.output)
         return 1
     if not args.config:
         args.config = []
@@ -81,7 +81,7 @@ def preprocess_source(args):
     pipeline = Engine(engine, explain=args.explain).link(DzhigurdaFiles(args.dzhigurda))
     uasts = pipeline.link(UastExtractor(languages=[args.language]))
     fields = uasts.link(FieldsSelector(fields=args.fields))
-    saver = fields.link(ParquetSaver(save_loc=args.batches))
+    saver = fields.link(ParquetSaver(save_loc=args.output))
 
     saver.explode()
 
