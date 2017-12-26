@@ -143,4 +143,4 @@ docker run -it --rm -v /path/to/io:/io srcd/apollo dumpcmd /io/communities.asdf 
 
 ## License
 
-GPL.
+[GPL](LICENSE.md).
