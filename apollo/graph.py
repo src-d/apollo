@@ -237,7 +237,7 @@ def detect_communities(args):
     log.info("Launching the community detection")
     detector = CommunityDetector(algorithm=args.algorithm, config=args.params)
     if not args.no_spark:
-        spark = create_spark("cmd-%s" % uuid4(), args).sparkContext
+        spark = create_spark("cmd-%s" % uuid4(), **args.__dict__).sparkContext
         communities.extend(spark.parallelize(graphs).flatMap(detector).collect())
     else:
         communities.extend(chain.from_iterable(progress_bar(
@@ -296,10 +296,12 @@ class BatchedCommunityResolver:
                 com.append((sha1, info))
             else:
                 self._prev = sha1, info, ci
-                return com
+                if len(com) > 1:
+                    return com
         if com and pci is not None:
             self._prev = None, None, None
-            return com
+            if len(com) > 1:
+                return com
         raise StopIteration()
 
     def __iter__(self):
@@ -359,7 +361,7 @@ def evaluate_communities(args):
     log = logging.getLogger("evalcc")
     model = CommunitiesModel().load(args.input)
     patch_tables(args)
-    spark = create_spark("evalcc-%s" % uuid4(), args)
+    spark = create_spark("evalcc-%s" % uuid4(), **args.__dict__)
     log.info("Preparing the communities' RDD")
     items = []
     for i, c in progress_bar(enumerate(model.communities), log,

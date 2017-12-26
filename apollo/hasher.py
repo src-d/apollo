@@ -110,7 +110,7 @@ def hash_batches(args):
     log.info("Number of hash tables: %d", htnum)
     log.info("Band size: %d", band_size)
     cassandra_utils.configure(args)
-    spark = create_spark("hash-%s" % uuid4(), args).sparkContext
+    spark = create_spark("hash-%s" % uuid4(), **args.__dict__).sparkContext
     voc_size = batches[0].matrix.shape[-1]
     for b in batches:
         if b.matrix.shape[-1] != voc_size:

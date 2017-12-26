@@ -94,7 +94,7 @@ def source2bags(args):
     if not args.config:
         args.config = []
     cassandra_utils.configure(args)
-    engine = create_engine("source2bags-%s" % uuid4(), args.repositories, args)
+    engine = create_engine("source2bags-%s" % uuid4(), **args.__dict__)
     extractors = [__extractors__[s](
         args.min_docfreq, **__extractors__[s].get_kwargs_fromcmdline(args))
         for s in args.feature]
