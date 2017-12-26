@@ -9,7 +9,7 @@ from modelforge.logs import setup_logging
 from sourced.ml import extractors
 
 from apollo.bags import preprocess_source, source2bags
-from apollo.cassandra_utils import reset_db, sha1_to_url
+from apollo.cassandra_utils import reset_db
 from apollo.graph import find_connected_components, dumpcc, detect_communities, dumpcmd, \
     evaluate_communities
 from apollo.hasher import hash_batches
@@ -17,6 +17,7 @@ from apollo.query import query
 from apollo.warmup import warmup
 
 
+ENGINE_VERSION = "0.3.1"
 CASSANDRA_PACKAGE = "com.datastax.spark:spark-cassandra-connector_2.11:2.0.3"
 
 
@@ -27,8 +28,7 @@ def get_parser() -> argparse.ArgumentParser:
     :return: Parser
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--log-level", default="INFO",
-                        choices=logging._nameToLevel,
+    parser.add_argument("--log-level", default="INFO", choices=logging._nameToLevel,
                         help="Logging verbosity.")
 
     def add_spark_args(my_parser):
@@ -40,13 +40,16 @@ def get_parser() -> argparse.ArgumentParser:
             "--package", nargs="+", default=[CASSANDRA_PACKAGE], help="Additional Spark package.")
         my_parser.add_argument(
             "--spark-local-dir", default="/tmp/spark", help="Spark local directory.")
+        my_parser.add_argument("--spark-log-level", default="WARN", choices=(
+            "ALL", "DEBUG", "ERROR", "FATAL", "INFO", "OFF", "TRACE", "WARN"),
+                               help="Spark log level")
 
     def add_engine_args(my_parser):
         add_spark_args(my_parser)
         my_parser.add_argument(
             "--bblfsh", default="localhost", help="Babelfish server's address.")
         my_parser.add_argument(
-            "--engine", default="0.2.0", help="source{d} engine version.")
+            "--engine", default=ENGINE_VERSION, help="source{d} engine version.")
         my_parser.add_argument("--explain", action="store_true",
                                help="Print the PySpark execution plans.")
         my_parser.add_argument("--pause", action="store_true",
@@ -86,6 +89,13 @@ def get_parser() -> argparse.ArgumentParser:
                                help="Used to adjust the relative importance of "
                                     "minimizing false negatives count when optimizing "
                                     "for the Jaccard similarity threshold.")
+
+    def add_template_args(my_parser, default_template):
+        my_parser.add_argument("--batch", type=int, default=100,
+                               help="Number of hashes to query at a time.")
+        my_parser.add_argument("--template", default=default_template,
+                               help="Jinja2 template to render.")
+        add_cassandra_args(my_parser)
 
     subparsers = parser.add_subparsers(help="Commands", dest="command")
 
@@ -167,9 +177,8 @@ def get_parser() -> argparse.ArgumentParser:
     add_features_arg(query_parser, False, " (file mode).")
     query_parser.add_argument("-x", "--precise", action="store_true",
                               help="Calculate the precise set.")
-    query_parser.add_argument("-o", "--format", choices=("human", "json"), help="Output format.")
     add_wmh_args(query_parser, "Path to the Weighted MinHash parameters.", False, False)
-    add_cassandra_args(query_parser)
+    add_template_args(query_parser, "query.md.jinja2")
 
     db_parser = subparsers.add_parser("resetdb", help="Destructively initialize the database.")
     db_parser.set_defaults(handler=reset_db)
@@ -216,12 +225,7 @@ def get_parser() -> argparse.ArgumentParser:
         "dumpcmd", help="Output the detected communities to stdout.")
     dumpcmd_parser.set_defaults(handler=dumpcmd)
     dumpcmd_parser.add_argument("input", help="Path to the asdf file with communities.")
-
-    urls_parser = subparsers.add_parser("urls", help="Convert all sha1 from stdin to URLs.")
-    urls_parser.set_defaults(handler=sha1_to_url)
-    urls_parser.add_argument("--batch", type=int, default=100,
-                             help="Number of hashes to query at a time.")
-    add_cassandra_args(urls_parser)
+    add_template_args(dumpcmd_parser, "report.md.jinja2")
 
     evalcc_parser = subparsers.add_parser(
         "evalcc", help="Evaluate the communities: calculate the precise similarity and the "

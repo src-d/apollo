@@ -1,0 +1,18 @@
+# Code similarity report
+
+### Model
+Path: `{{ model_path }}`
+
+Items: {{ model.id_to_element | length }}
+
+Cardinality: {{ model.communities | length }}
+
+### Communities
+{% for com in communities %}
+
+| SHA1 | Repository | Commit | Path |
+|:----:|:-----------|:-------|:-----|
+    {% for sha1, (repo, commit, path) in com | sort %}
+| `{{ sha1 }}` | [{{ repo.rsplit(".git")[0] }}](https://{{ repo.rsplit(".git")[0] }}) | `{{ commit[:8] }}` | [{{ path }}]({{ format_url(repo, commit, path) }}) |
+    {% endfor %}
+{% endfor %}

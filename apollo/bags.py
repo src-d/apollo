@@ -43,7 +43,8 @@ class MetadataSaver(Transformer):
         self.table = table
 
     def __call__(self, head):
-        rows = head.rdd.map(lambda x: Row(sha1=x.blob_id, url=self.format_url(x)))
+        rows = head.rdd.map(lambda x: Row(
+            sha1=x.blob_id, repo=x.repository_id, commit=x.commit_hash, path=x.path))
         if self.explained:
             self._log.info("toDebugString():\n%s", rows.toDebugString().decode())
         rows.toDF() \
@@ -52,14 +53,6 @@ class MetadataSaver(Transformer):
             .mode("append") \
             .options(table=self.table, keyspace=self.keyspace) \
             .save()
-
-    @staticmethod
-    def format_url(row):
-        if row.repository_id.startswith("github.com"):
-            return "https://%s/blob/%s/%s" % (row.repository_id, row.commit_hash, row.path)
-        if row.repository_id.startswith("bitbucket.org"):
-            return "https://%s/src/%s/%s" % (row.repository_id, row.commit_hash, row.path)
-        return "[%s %s %s]" % (row.repository_id, row.commit_hash, row.path)
 
 
 class DzhigurdaFiles(Transformer):

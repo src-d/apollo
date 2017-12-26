@@ -1,10 +1,11 @@
 from collections import defaultdict
 from itertools import chain
 import logging
+import os
+import sys
 from uuid import uuid4
 
 from igraph import Graph
-
 from modelforge import Model, merge_strings, split_strings, assemble_sparse_matrix, \
     disassemble_sparse_matrix, register_model
 from modelforge.progress_bar import progress_bar
@@ -13,8 +14,8 @@ from pyspark.sql.types import Row
 from scipy.sparse import csr_matrix
 from sourced.ml.utils import create_spark
 
-from apollo.cassandra_utils import get_db, patch_tables
-from apollo.query import weighted_jaccard
+from apollo.cassandra_utils import get_db, patch_tables, BatchedHashResolver, Session
+from apollo.query import weighted_jaccard, stream_template
 
 
 @register_model
@@ -169,6 +170,9 @@ class CommunitiesModel(Model):
             indptr[i + 1] = pos
         return {"data": data, "indptr": indptr, "elements": merge_strings(self.id_to_element)}
 
+    def count_elements(self):
+        return sum(sum(1 for i in c if i < len(self.id_to_element)) for c in self.communities)
+
 
 def detect_communities(args):
     log = logging.getLogger("cmd")
@@ -273,13 +277,51 @@ class CommunityDetector:
         return output
 
 
+class BatchedCommunityResolver:
+    def __init__(self, model: CommunitiesModel, batch_size: int, session: Session, table: str):
+        self._log = logging.getLogger("BatchedCommunityResolver")
+        self.resolver = progress_bar(
+            BatchedHashResolver(self._gen_hashes(model), batch_size, session, table),
+            self._log, expected_size=model.count_elements()
+        )
+        self._prev = None, None, None
+
+    def __next__(self):
+        pci = self._prev[-1]
+        com = [self._prev[:-1]] if pci is not None else []
+        for sha1, info, ci in self.resolver:
+            if pci is None:
+                pci = ci
+            if pci == ci:
+                com.append((sha1, info))
+            else:
+                self._prev = sha1, info, ci
+                return com
+        if com and pci is not None:
+            self._prev = None, None, None
+            return com
+        raise StopIteration()
+
+    def __iter__(self):
+        return self
+
+    def _gen_hashes(self, model):
+        id_to_element = model.id_to_element
+        for i, community in enumerate(model.communities):
+            for j in community:
+                try:
+                    yield id_to_element[j], i
+                except IndexError:
+                    continue
+
+
 def dumpcmd(args):
+    log = logging.getLogger("dumpcmd")
     model = CommunitiesModel().load(args.input)
-    id_to_element = model.id_to_element
-    for community in model.communities:
-        s = " ".join(id_to_element[i] for i in community if i < len(id_to_element))
-        if s:
-            print(s)
+    log.info("Initializing the sha1 resolver")
+    communities = BatchedCommunityResolver(model, args.batch, get_db(args), args.tables["meta"])
+    stream_template(args.template, sys.stdout, communities=communities, model=model,
+                    model_path=os.path.abspath(args.input))
 
 
 class CommunityEvaluator:

@@ -1,11 +1,13 @@
 import codecs
 import logging
+import os
+import sys
+
+import jinja2
 import numpy
-
-
 from sourced.ml.models import OrderedDocumentFrequencies
 
-from apollo.cassandra_utils import get_db
+from apollo.cassandra_utils import get_db, BatchedHashResolver
 from apollo.hasher import hash_file, calc_hashtable_params
 
 
@@ -62,9 +64,39 @@ def query(args):
                 precise.append(x)
             log.info("Survived: %.2f", len(precise) / len(similar))
         similar = precise
-    for h in similar:
-        print(h)
+    if args.id:
+        try:
+            similar.remove(args.id)
+        except KeyError:
+            # o_O
+            pass
+    stream_template(args.template, sys.stdout, size=len(similar),
+                    origin=args.id if args.id else os.path.abspath(args.file),
+                    items=BatchedHashResolver(similar, args.batch, session, tables["meta"]))
 
 
 def weighted_jaccard(vec1, vec2):
     return numpy.minimum(vec1, vec2).sum() / numpy.maximum(vec1, vec2).sum()
+
+
+def format_url(repo, commit, path):
+    if repo.startswith("github.com"):
+        return "https://%s/blob/%s/%s" % (repo, commit, path)
+    if repo.startswith("bitbucket.org"):
+        return "https://%s/src/%s/%s" % (repo, commit, path)
+    return "[%s %s %s]" % (repo, commit, path)
+
+
+def stream_template(name, dest, **kwargs):
+    log = logging.getLogger("jinja2")
+    log.info("Loading the template")
+    loader = jinja2.FileSystemLoader(("/", os.path.dirname(__file__), os.getcwd()),
+                                     followlinks=True)
+    env = jinja2.Environment(
+        trim_blocks=True,
+        lstrip_blocks=True,
+        keep_trailing_newline=False,
+    )
+    template = loader.load(env, name)
+    log.info("Rendering")
+    template.stream(**kwargs, format_url=format_url).dump(dest)

@@ -1,13 +1,12 @@
-from collections import defaultdict
 from datetime import datetime
 import logging
 import json
 import platform
 import re
-import sys
+from typing import Iterable
 
 import modelforge.logs
-from cassandra.cluster import Cluster, NoHostAvailable
+from cassandra.cluster import Cluster, Session, NoHostAvailable
 from cassandra.policies import RoundRobinPolicy
 
 
@@ -23,7 +22,11 @@ def patch_tables(args):
 
 
 def configure(args):
-    cas_host, cas_port = args.cassandra.split(":")
+    try:
+        cas_host, cas_port = args.cassandra.split(":")
+    except ValueError:
+        cas_host = args.cassandra
+        cas_port = "9042"
     args.config.append("spark.cassandra.connection.host=" + cas_host)
     args.config.append("spark.cassandra.connection.port=" + cas_port)
     patch_tables(args)
@@ -66,8 +69,8 @@ def reset_db(args):
     if not args.hashes_only:
         cql("CREATE TABLE %s (sha1 ascii, item ascii, value float, PRIMARY KEY (sha1, item))"
             % tables["bags"])
-        cql("CREATE TABLE %s (sha1 ascii, url text, PRIMARY KEY (sha1, url))"
-            % tables["meta"])
+        cql("CREATE TABLE %s (sha1 ascii, repo text, commit ascii, path text, "
+            "PRIMARY KEY (sha1, repo))" % tables["meta"])
     else:
         cql("DROP TABLE IF EXISTS %s" % tables["hashes"])
         cql("DROP TABLE IF EXISTS %s" % tables["hashtables"])
@@ -79,55 +82,60 @@ def reset_db(args):
         "PRIMARY KEY (sha1, hashtable))" % tables["hashtables2"])
 
 
-def sha1_to_url(args):
-    session = get_db(args)
-    sha1re = re.compile("([a-f0-9]{40})")
-    buffer = []
-    pending = set()
-    batch_size = args.batch * 2  # 50% are hashes
+class BatchedHashResolver:
+    def __init__(self, hashes: Iterable, batch_size: int, session: Session, table: str):
+        self.hashes = iter(hashes)
+        self.batch_size = batch_size
+        self.session = session
+        self.table = table
+        self.buffer = []
+        self._log = logging.getLogger("BatchedHashResolver")
 
-    def output():
-        nonlocal buffer, pending
-        if not buffer:
-            return
-        query = [s[0] for s in buffer[:batch_size] if isinstance(s, tuple)]
-        rows = session.execute("select sha1, url from %s where sha1 in (%s)" % (
-            args.tables["meta"], ",".join("'%s'" % q for q in query)
-        ))
-        pending -= set(query)
-        urls = defaultdict(list)
+    def __next__(self):
+        while True:
+            if not self.buffer:
+                self._pump()
+            r = None
+            while r is None and self.buffer:
+                r = self.buffer.pop()
+            if r is not None:
+                return r
+
+    def __iter__(self):
+        return self
+
+    def _pump(self):
+        first_hash = next(self.hashes)
+        try:
+            fh, fm = first_hash
+            items = {h: (i, m) for i, (h, m) in zip(range(1, self.batch_size), self.hashes)}
+            items[fh] = 0, fm
+            meta = True
+        except ValueError:
+            items = {h: i for i, h in zip(range(1, self.batch_size), self.hashes)}
+            items[first_hash] = 0
+            meta = False
+        if not items:
+            raise StopIteration()
+        query = "select sha1, repo, commit, path from %s where sha1 in (%s)" % (
+            self.table, ",".join("'%s'" % h for h in items))
+        self._log.debug("%s in (%d)", query[:query.find(" in (")], len(items))
+        rows = self.session.execute(query)
+        buffer = self.buffer
+        buffer.extend(None for _ in items)
+        l = len(items)
+        count = 0
         for r in rows:
-            urls[r.sha1].append(r.url)
-        for s in buffer[:batch_size]:
-            if isinstance(s, tuple):
-                myurls = urls.get(s[0])
-                if not myurls:
-                    sys.stdout.write(s[0])
-                elif len(myurls) == 1:
-                    sys.stdout.write(myurls[0])
-                else:
-                    sys.stdout.write("[%s]" % " ".join(myurls))
+            count += 1
+            if meta:
+                i, m = items[r.sha1]
             else:
-                sys.stdout.write(s)
-        buffer = buffer[batch_size:]
-
-    for line in sys.stdin:
-        splitted = sha1re.split(line)
-        hashes = splitted[-2:0:-1]
-        pending.update(hashes)
-        if hashes:
-            parity = splitted[0] == hashes[-1]
-        else:
-            parity = 0  # there is always a trailing \n
-        for i, s in enumerate(splitted):
-            if i % 2 == parity:
-                buffer.append(s)
-            else:
-                buffer.append((s,))
-        while len(buffer) > batch_size:
-            output()
-    while buffer:
-        output()
+                i = items[r.sha1]
+                m = None
+            # reverse order - we will pop() in __next__
+            tr = r.sha1, (r.repo, r.commit, r.path)
+            buffer[l - i - 1] = (tr + (m,)) if meta else tr
+        self._log.debug("-> %d", count)
 
 
 class ColorFormatter(logging.Formatter):

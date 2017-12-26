@@ -1,0 +1,9 @@
+# Similar to {{ origin }}
+
+Size: {{ size }}
+
+| SHA1 | Repository | Commit | Path |
+|:----:|:-----------|:-------|:-----|
+{% for sha1, (repo, commit, path) in items | sort %}
+| `{{ sha1 }}` | [{{ repo.rsplit(".git")[0] }}](https://{{ repo.rsplit(".git")[0] }}) | `{{ commit[:8] }}` | [{{ path }}]({{ format_url(repo, commit, path) }}) |
+{% endfor %}
