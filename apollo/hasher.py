@@ -8,8 +8,9 @@ from modelforge.models import register_model
 import numpy
 from pyspark.sql.types import Row
 from scipy.integrate import quad as integrate
-from sourced.ml.engine import create_spark
-from sourced.ml.repo2 import wmhash
+from sourced.ml.utils import create_spark
+from sourced.ml.transformers import BagsBatchParquetLoader
+from sourced.ml.extractors import __extractors__
 
 from apollo import cassandra_utils
 
@@ -98,7 +99,7 @@ class HashExploder:
 def hash_batches(args):
     log = logging.getLogger("hash")
     log.info("Loading files from %s", args.input)
-    loader = wmhash.BagsBatchParquetLoader(args.input)
+    loader = BagsBatchParquetLoader(args.input)
     batches = list(loader)
     log.info("%d batches, shapes: %s", len(batches),
              ", ".join(str(b.matrix.shape) for b in batches))
@@ -109,7 +110,7 @@ def hash_batches(args):
     log.info("Number of hash tables: %d", htnum)
     log.info("Band size: %d", band_size)
     cassandra_utils.configure(args)
-    spark = create_spark("hash-%s" % uuid4(), args).sparkContext
+    spark = create_spark("hash-%s" % uuid4(), **args.__dict__).sparkContext
     voc_size = batches[0].matrix.shape[-1]
     for b in batches:
         if b.matrix.shape[-1] != voc_size:
@@ -163,13 +164,13 @@ def hash_file(args):
     if not args.feature:
         raise ValueError("extractors must not be empty")
     log = logging.getLogger("hash_file")
-    vocab = wmhash.OrderedDocumentFrequencies().load(args.docfreq)
+    vocab = OrderedDocumentFrequencies().load(args.docfreq)
     params = WeightedMinHashParameters().load(args.params)
     log.info("Extracting UAST from %s", args.file)
     uast = BblfshClient(args.bblfsh).parse(args.file).uast
     log.info("Populating the bag")
-    extractors = [wmhash.__extractors__[s](
-        args.min_docfreq, **wmhash.__extractors__[s].get_kwargs_fromcmdline(args))
+    extractors = [__extractors__[s](
+        args.min_docfreq, **__extractors__[s].get_kwargs_fromcmdline(args))
         for s in args.feature]
     bag = numpy.zeros(len(vocab), dtype=numpy.float32)
     for ex in extractors:

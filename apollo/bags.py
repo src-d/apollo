@@ -3,10 +3,10 @@ import os
 from uuid import uuid4
 
 
-from sourced.ml.engine import create_engine
-from sourced.ml.repo2 import wmhash
-from sourced.ml.repo2.base import UastExtractor, Transformer, Cacher, UastDeserializer, Engine, \
-    FieldsSelector, ParquetSaver
+from sourced.ml.utils import create_engine
+from sourced.ml.extractors import __extractors__
+from sourced.ml.transformers import UastExtractor, Transformer, Cacher, UastDeserializer, Engine, \
+    FieldsSelector, ParquetSaver, Repo2WeightedSet, Repo2DocFreq, BagsBatchSaver, BagsBatcher
 
 from pyspark.sql.types import Row
 
@@ -94,9 +94,9 @@ def source2bags(args):
     if not args.config:
         args.config = []
     cassandra_utils.configure(args)
-    engine = create_engine("source2bags-%s" % uuid4(), args.repositories, args)
-    extractors = [wmhash.__extractors__[s](
-        args.min_docfreq, **wmhash.__extractors__[s].get_kwargs_fromcmdline(args))
+    engine = create_engine("source2bags-%s" % uuid4(), **args.__dict__)
+    extractors = [__extractors__[s](
+        args.min_docfreq, **__extractors__[s].get_kwargs_fromcmdline(args))
         for s in args.feature]
     pipeline = Engine(engine, explain=args.explain).link(DzhigurdaFiles(args.dzhigurda))
     uasts = pipeline.link(UastExtractor(languages=[args.language]))
@@ -104,13 +104,13 @@ def source2bags(args):
         uasts = uasts.link(Cacher(args.persist))
     uasts.link(MetadataSaver(args.keyspace, args.tables["meta"]))
     uasts = uasts.link(UastDeserializer())
-    uasts.link(wmhash.Repo2DocFreq(extractors))
+    uasts.link(Repo2DocFreq(extractors))
     pipeline.explode()
-    bags = uasts.link(wmhash.Repo2WeightedSet(extractors))
+    bags = uasts.link(Repo2WeightedSet(extractors))
     if args.persist is not None:
         bags = bags.link(Cacher(args.persist))
-    batcher = bags.link(wmhash.BagsBatcher(extractors))
-    batcher.link(wmhash.BagsBatchSaver(args.batches, batcher))
+    batcher = bags.link(BagsBatcher(extractors))
+    batcher.link(BagsBatchSaver(args.batches, batcher))
     bags.link(BagsSaver(args.keyspace, args.tables["bags"]))
     bags.explode()
     log.info("Writing %s", args.docfreq)

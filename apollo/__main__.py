@@ -6,7 +6,8 @@ from time import time
 
 from igraph import Graph
 from modelforge.logs import setup_logging
-from sourced.ml.repo2 import wmhash
+from sourced.ml import extractors
+from sourced.ml.utils import add_engine_args, add_spark_args
 
 from apollo.bags import preprocess_source, source2bags
 from apollo.cassandra_utils import reset_db
@@ -31,38 +32,12 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument("--log-level", default="INFO", choices=logging._nameToLevel,
                         help="Logging verbosity.")
 
-    def add_spark_args(my_parser):
-        my_parser.add_argument(
-            "-s", "--spark", default="local[*]", help="Spark's master address.")
-        my_parser.add_argument(
-            "--config", nargs="+", default=[], help="Spark configuration (key=value).")
-        my_parser.add_argument(
-            "--package", nargs="+", default=[CASSANDRA_PACKAGE], help="Additional Spark package.")
-        my_parser.add_argument(
-            "--spark-local-dir", default="/tmp/spark", help="Spark local directory.")
-        my_parser.add_argument("--spark-log-level", default="WARN", choices=(
-            "ALL", "DEBUG", "ERROR", "FATAL", "INFO", "OFF", "TRACE", "WARN"),
-                               help="Spark log level")
-
-    def add_engine_args(my_parser):
-        add_spark_args(my_parser)
-        my_parser.add_argument(
-            "--bblfsh", default="localhost", help="Babelfish server's address.")
-        my_parser.add_argument(
-            "--engine", default=ENGINE_VERSION, help="source{d} engine version.")
-        my_parser.add_argument("--explain", action="store_true",
-                               help="Print the PySpark execution plans.")
-        my_parser.add_argument("--pause", action="store_true",
-                               help="Do not terminate in the end.")
-        my_parser.add_argument("--dzhigurda", default=0, type=int,
-                               help="Index of the examined commit in the history.")
-
     def add_features_arg(my_parser, required: bool, suffix="."):
         my_parser.add_argument(
             "-f", "--feature", nargs="+",
-            choices=[ex.NAME for ex in wmhash.__extractors__.values()],
+            choices=[ex.NAME for ex in extractors.__extractors__.values()],
             required=required, help="The feature extraction scheme to apply" + suffix)
-        for ex in wmhash.__extractors__.values():
+        for ex in extractors.__extractors__.values():
             for opt, val in ex.OPTS.items():
                 my_parser.add_argument("--%s-%s" % (ex.NAME, opt), default=val, type=json.loads,
                                        help="%s's kwarg" % ex.__name__)
@@ -140,16 +115,18 @@ def get_parser() -> argparse.ArgumentParser:
         "-l", "--language", choices=("Java", "Python"),
         help="The programming language to analyse.")
     source2bags_parser.add_argument(
-        "--persist", default=None, help="Persistence type (StorageClass.*).")
-    source2bags_parser.add_argument(
         "--graph", help="Write the tree in Graphviz format to this file.")
+    source2bags_parser.add_argument(
+        "--pause", action="store_true", help="Do not terminate in the end.")
+    source2bags_parser.add_argument(
+        "--dzhigurda", default=0, type=int, help="Index of the examined commit in the history.")
     add_cassandra_args(source2bags_parser)
-    add_engine_args(source2bags_parser)
+    add_engine_args(source2bags_parser, default_packages=[CASSANDRA_PACKAGE])
 
     warmup_parser = subparsers.add_parser(
         "warmup", help="Initialize source{d} engine.")
     warmup_parser.set_defaults(handler=warmup)
-    add_engine_args(warmup_parser)
+    add_engine_args(warmup_parser, default_packages=[CASSANDRA_PACKAGE])
 
     hash_parser = subparsers.add_parser(
         "hash", help="Run MinHashCUDA on the bag batches.")
@@ -164,7 +141,7 @@ def get_parser() -> argparse.ArgumentParser:
                              help="Or-red indices of NVIDIA devices to use. 0 means all.")
     add_wmh_args(hash_parser, "Path to the output file with WMH parameters.", True, True)
     add_cassandra_args(hash_parser)
-    add_spark_args(hash_parser)
+    add_spark_args(hash_parser, default_packages=[CASSANDRA_PACKAGE])
 
     query_parser = subparsers.add_parser("query", help="Query for similar files.")
     query_parser.set_defaults(handler=query)
@@ -236,7 +213,7 @@ def get_parser() -> argparse.ArgumentParser:
     evalcc_parser.add_argument("-i", "--input", required=True,
                                help="Path to the communities model.")
 
-    add_spark_args(evalcc_parser)
+    add_spark_args(evalcc_parser, default_packages=[CASSANDRA_PACKAGE])
     add_cassandra_args(evalcc_parser)
 
     # TODO: retable [.....] -> [.] [.] [.] [.] [.]
