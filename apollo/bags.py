@@ -77,7 +77,7 @@ def preprocess_source(args):
         return 1
     if not args.config:
         args.config = []
-    engine = create_engine("source2bags-%s" % uuid4(), args.repositories, args)
+    engine = create_engine("source2bags-%s" % uuid4(), **args.__dict__)
     pipeline = Engine(engine, explain=args.explain).link(DzhigurdaFiles(args.dzhigurda))
     uasts = pipeline.link(UastExtractor(languages=[args.language]))
     fields = uasts.link(FieldsSelector(fields=args.fields))
