@@ -84,6 +84,8 @@ def get_parser() -> argparse.ArgumentParser:
         "-o", "--output", required=True,
         help="[OUT] The path to the Parquet files with bag batches.")
     preprocessing_parser.add_argument(
+        "--dzhigurda", default=0, type=int, help="Index of the examined commit in the history.")
+    preprocessing_parser.add_argument(
         "-l", "--language", choices=("Java", "Python"),
         help="The programming language to analyse.")
     default_fields = ["blob_id", "repository_id", "content", "path", "commit_hash", "uast"]
