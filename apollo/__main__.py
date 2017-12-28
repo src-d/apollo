@@ -88,6 +88,8 @@ def get_parser() -> argparse.ArgumentParser:
     preprocessing_parser.add_argument(
         "-l", "--language", choices=("Java", "Python"),
         help="The programming language to analyse.")
+    preprocessing_parser.add_argument(
+        "--pause", action="store_true", help="Do not terminate in the end.")
     default_fields = ["blob_id", "repository_id", "content", "path", "commit_hash", "uast"]
     preprocessing_parser.add_argument(
         "-f", "--fields", nargs="+", default=default_fields,
