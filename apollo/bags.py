@@ -93,31 +93,33 @@ def source2bags(args):
         return 1
     if not args.config:
         args.config = []
-    cassandra_utils.configure(args)
-    engine = create_engine("source2bags-%s" % uuid4(), **args.__dict__)
-    extractors = [__extractors__[s](
-        args.min_docfreq, **__extractors__[s].get_kwargs_fromcmdline(args))
-        for s in args.feature]
-    pipeline = Engine(engine, explain=args.explain).link(DzhigurdaFiles(args.dzhigurda))
-    uasts = pipeline.link(UastExtractor(languages=[args.language]))
-    if args.persist is not None:
-        uasts = uasts.link(Cacher(args.persist))
-    uasts.link(MetadataSaver(args.keyspace, args.tables["meta"]))
-    uasts = uasts.link(UastDeserializer())
-    uasts.link(Repo2DocFreq(extractors))
-    pipeline.explode()
-    bags = uasts.link(Repo2WeightedSet(extractors))
-    if args.persist is not None:
-        bags = bags.link(Cacher(args.persist))
-    batcher = bags.link(BagsBatcher(extractors))
-    batcher.link(BagsBatchSaver(args.batches, batcher))
-    bags.link(BagsSaver(args.keyspace, args.tables["bags"]))
-    bags.explode()
-    log.info("Writing %s", args.docfreq)
-    batcher.model.save(args.docfreq)
-    if args.graph:
-        log.info("Dumping the graph to %s", args.graph)
-        with open(args.graph, "w") as f:
-            pipeline.graph(stream=f)
-    if args.pause:
-        input("Press Enter to exit...")
+    try:
+        cassandra_utils.configure(args)
+        engine = create_engine("source2bags-%s" % uuid4(), **args.__dict__)
+        extractors = [__extractors__[s](
+            args.min_docfreq, **__extractors__[s].get_kwargs_fromcmdline(args))
+            for s in args.feature]
+        pipeline = Engine(engine, explain=args.explain).link(DzhigurdaFiles(args.dzhigurda))
+        uasts = pipeline.link(UastExtractor(languages=[args.language]))
+        if args.persist is not None:
+            uasts = uasts.link(Cacher(args.persist))
+        uasts.link(MetadataSaver(args.keyspace, args.tables["meta"]))
+        uasts = uasts.link(UastDeserializer())
+        uasts.link(Repo2DocFreq(extractors))
+        pipeline.explode()
+        bags = uasts.link(Repo2WeightedSet(extractors))
+        if args.persist is not None:
+            bags = bags.link(Cacher(args.persist))
+        batcher = bags.link(BagsBatcher(extractors))
+        batcher.link(BagsBatchSaver(args.batches, batcher))
+        bags.link(BagsSaver(args.keyspace, args.tables["bags"]))
+        bags.explode()
+        log.info("Writing %s", args.docfreq)
+        batcher.model.save(args.docfreq)
+        if args.graph:
+            log.info("Dumping the graph to %s", args.graph)
+            with open(args.graph, "w") as f:
+                pipeline.graph(stream=f)
+    finally:
+        if args.pause:
+            input("Press Enter to exit...")
