@@ -19,7 +19,7 @@ existing tools which may be already integrated into your IDE.
 
 ### Difference from [src-d/gemini](https://github.com/src-d/gemini)?
 
-This guy is my big brother. Apollo focuses on research, extensibility, flexibility and rapid
+This guy is my brother. Apollo focuses on research, extensibility, flexibility and rapid
 changes, while Gemini focuses on performance and serious production usage. All the proven and 
 tested features will be eventually ported to Gemini. At the same time, Gemini may reuse some
 of Apollo's code.
