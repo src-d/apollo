@@ -8,6 +8,7 @@ from modelforge.models import register_model
 import numpy
 from pyspark.sql.types import Row
 from scipy.integrate import quad as integrate
+from sourced.ml.models import OrderedDocumentFrequencies
 from sourced.ml.utils import create_spark
 from sourced.ml.transformers import BagsBatchParquetLoader
 from sourced.ml.extractors import __extractors__
@@ -96,6 +97,39 @@ class HashExploder:
                       value=bytearray(wmh[hti * self.band_size:(hti + 1) * self.band_size].data))
 
 
+def modify_feature_weights(batches, arguments, **kwargs):
+    log = logging.getLogger("hash")
+    extractors = {}
+    for ex in __extractors__.values():
+        if "%s_weight" % ex.NAME in dir(arguments) and \
+                        getattr(arguments, "%s_weight" % ex.NAME) != 1:
+            extractors[ex.NAME] = (ex.NAMESPACE, getattr(arguments, "%s_weight" % ex.NAME))
+
+    if not extractors:
+        return batches
+
+    err = "You must specify location of docfreq file to modify weights of features"
+    assert arguments.docfreq is not None, err
+    assert os.path.isfile(arguments.docfreq), "docfreq should be a file"
+
+    model = OrderedDocumentFrequencies().load(arguments.docfreq)
+    feature_mapping = model.order
+
+    voc_size = batches[0].matrix.shape[-1]
+    weights = numpy.ones((voc_size,))
+
+    for ext in extractors:
+        namespace = extractors[ext][0]
+        ind = [feature_mapping[k] for k in feature_mapping if k.startswith(namespace)]
+        weights[ind] = extractors[ext][1]
+
+    for batch in batches:
+        # hack to modify attribute in namedtuple
+        batch.matrix.data = batch.matrix.multiply(weights).tocsr().data.astype(numpy.float32)
+
+    return batches
+
+
 def hash_batches(args):
     log = logging.getLogger("hash")
     log.info("Loading files from %s", args.input)
@@ -103,19 +137,26 @@ def hash_batches(args):
     batches = list(loader)
     log.info("%d batches, shapes: %s", len(batches),
              ", ".join(str(b.matrix.shape) for b in batches))
+
+    # Check batches
     if not batches:
         return
+    voc_size = batches[0].matrix.shape[-1]
+    for b in batches:
+        if b.matrix.shape[-1] != voc_size:
+            raise ValueError("The vocabulary sizes does not match: %d != %d"
+                             % (b.matrix.shape[-1], voc_size))
+
+    # Modify features if needed
+    batches = modify_feature_weights(batches, args)
+
     htnum, band_size = calc_hashtable_params(
         args.threshold, args.size, args.false_positive_weight, args.false_negative_weight)
     log.info("Number of hash tables: %d", htnum)
     log.info("Band size: %d", band_size)
     cassandra_utils.configure(args)
     spark = create_spark("hash-%s" % uuid4(), **args.__dict__).sparkContext
-    voc_size = batches[0].matrix.shape[-1]
-    for b in batches:
-        if b.matrix.shape[-1] != voc_size:
-            raise ValueError("The vocabulary sizes does not match: %d != %d"
-                             % (b.matrix.shape[-1], voc_size))
+
     log.info("Initializing the generator")
     deferred = os.path.isfile(args.params)
     import libMHCUDA  # delayed import which requires CUDA and friends
