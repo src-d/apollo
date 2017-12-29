@@ -119,7 +119,7 @@ def source2bags(args):
         batcher.link(BagsBatchSaver(args.batches, batcher))
         bags.link(BagsSaver(args.keyspace, args.tables["bags"]))
         bags.explode()
-        log.info("Writing %s", args.docfreq)
+        log.info("Writing docfreq to %s", args.docfreq)
         batcher.model.save(args.docfreq)
         if args.graph:
             log.info("Dumping the graph to %s", args.graph)
