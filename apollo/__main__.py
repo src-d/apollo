@@ -110,6 +110,9 @@ def get_parser() -> argparse.ArgumentParser:
     source2bags_parser.add_argument(
         "--min-docfreq", default=1, type=int,
         help="The minimum document frequency of each element.")
+    source2bags_parser.add_argument(
+        "--nb-partitions", default=10, type=int,
+        help="Target number of quantization levels.")
     add_features_arg(source2bags_parser, True)
     source2bags_parser.add_argument(
         "-l", "--language", choices=("Java", "Python"),
