@@ -1,5 +1,8 @@
 import logging
+import glob
 import os
+import shutil
+import tempfile
 from uuid import uuid4
 
 
@@ -70,6 +73,39 @@ class DzhigurdaFiles(Transformer):
         return chosen.tree_entries.blobs
 
 
+def _prepare_chunks(directory: str, n_files: int=-1):
+    """
+    Purpose: limit number of siva files to be processed by engine.
+    Generate temporary directories with maximum number of symlinks to files equal to n_files.
+
+    :param directory: directory with files
+    :param n_files: number of files per chunk. If negative then use all of them
+    :return: generator of temporary directories (with links to siva files) and flag to delete it or
+             not
+    """
+    if n_files < 0:
+        delete_directory = False
+        yield directory, delete_directory
+    else:
+        delete_directory = True
+        assert n_files > 0
+        siva_files = list(sorted(glob.iglob(os.path.normpath(directory) + "/**/*.siva",
+                                            recursive=True)))
+
+        for i in range(0, len(siva_files), n_files):
+            chunk = siva_files[i:min(i + n_files, len(siva_files))]
+
+            tmp_dir = os.path.join(tempfile.gettempdir(), str(uuid4()))
+            assert not os.path.exists(tmp_dir)
+            os.makedirs(tmp_dir)
+
+            # create symlinks to files
+            for file in chunk:
+                _, filename = os.path.split(file)
+                os.symlink(file, os.path.join(tmp_dir, filename))
+            yield tmp_dir, delete_directory
+
+
 def preprocess_source(args):
     log = logging.getLogger("preprocess_source")
     if os.path.exists(args.output):
@@ -79,13 +115,28 @@ def preprocess_source(args):
         args.config = []
 
     try:
-        engine = create_engine("source2bags-%s" % uuid4(), **args.__dict__)
-        pipeline = Engine(engine, explain=args.explain).link(DzhigurdaFiles(args.dzhigurda))
-        uasts = pipeline.link(UastExtractor(languages=[args.language]))
-        fields = uasts.link(FieldsSelector(fields=args.fields))
-        saver = fields.link(ParquetSaver(save_loc=args.output))
+        engine_args = args.__dict__.copy()
+        del engine_args["repositories"]
+        saved_dirs = []
+        for i, (tmp_dir, delete_dir) in enumerate(_prepare_chunks(args.repositories,
+                                                                  n_files=args.n_files)):
+            log.info("%s chunk in progress" % (i + 1))
+            # preprocessing pipeline
+            engine = create_engine("source2bags-%s" % uuid4(), repositories=tmp_dir, **engine_args)
+            pipeline = Engine(engine, explain=args.explain).link(DzhigurdaFiles(args.dzhigurda))
+            uasts = pipeline.link(UastExtractor(languages=[args.language]))
+            fields = uasts.link(FieldsSelector(fields=args.fields))
+            # save to subdirectory
+            saved_dirs.append(os.path.join(args.output, str(uuid4())))
+            saver = fields.link(ParquetSaver(save_loc=saved_dirs[-1]))
+            saver.explode()
 
-        saver.explode()
+            if delete_dir:
+                for file in glob.iglob(os.path.normpath(tmp_dir) + "/*.siva"):
+                    # never delete real files, only symlinks
+                    assert os.path.islink(file), "%s is not symlink" % file
+
+                shutil.rmtree(tmp_dir)
     finally:
         if args.pause:
             input("Press Enter to exit...")

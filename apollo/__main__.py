@@ -91,7 +91,9 @@ def get_parser() -> argparse.ArgumentParser:
     preprocessing_parser.add_argument(
         "--dzhigurda", default=0, type=int, help="Index of the examined commit in the history.")
     preprocessing_parser.add_argument(
-        "-l", "--language", choices=("Java", "Python"),
+        "-n", "--n-files", default=-1, type=int, help="Number of files per chunk to preprocess.")
+    preprocessing_parser.add_argument(
+        "-l", "--language", required=True, choices=("Java", "Python"),
         help="The programming language to analyse.")
     preprocessing_parser.add_argument(
         "--pause", action="store_true", help="Do not terminate in the end.")
