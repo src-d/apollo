@@ -6,7 +6,7 @@ from uuid import uuid4
 from sourced.ml.utils import create_engine
 from sourced.ml.extractors import __extractors__
 from sourced.ml.transformers import UastExtractor, Transformer, Cacher, UastDeserializer, Engine, \
-    FieldsSelector, ParquetSaver, Repo2WeightedSet, Repo2DocFreq, BagsBatchSaver, BagsBatcher
+    FieldsSelector, ParquetSaver, Repo2WeightedSet, Repo2DocFreq, Repo2Quant, BagsBatchSaver, BagsBatcher
 
 from pyspark.sql.types import Row
 
@@ -105,6 +105,7 @@ def source2bags(args):
             uasts = uasts.link(Cacher(args.persist))
         uasts.link(MetadataSaver(args.keyspace, args.tables["meta"]))
         uasts = uasts.link(UastDeserializer())
+        uasts.link(Repo2Quant(extractors, args.nb_partitions))
         uasts.link(Repo2DocFreq(extractors))
         pipeline.explode()
         bags = uasts.link(Repo2WeightedSet(extractors))
