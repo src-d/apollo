@@ -59,6 +59,34 @@ class ConnectedComponentsModel(Model):
                 "buckets": disassemble_sparse_matrix(self.id_to_buckets)}
 
 
+def _find_connected_component(buckets, element_to_buckets):
+    """
+    Find connected components among buckets.
+    :param buckets: list of buckets where each bucket contains list of elements
+    :param element_to_buckets: mapping from element to list of buckets where it appears
+    :return: mapping from connected component to set of elements in it
+    """
+    unvisited_buckets = set(range(len(buckets)))
+    connected_components_element = defaultdict(set)
+
+    cc_id = 0  # connected component counter
+    while unvisited_buckets:
+        pending = {unvisited_buckets.pop()}
+        while pending:
+            bucket = pending.pop()
+            elements = buckets[bucket]
+            connected_components_element[cc_id].update(elements)
+            for element in elements:
+                element_buckets = element_to_buckets[element]
+                for b in element_buckets:
+                    if b in unvisited_buckets:
+                        pending.add(b)
+                        unvisited_buckets.remove(b)
+        # increase number of connected components
+        cc_id += 1
+    return connected_components_element
+
+
 def find_connected_components(args):
     log = logging.getLogger("graph")
     session = get_db(args)
@@ -66,6 +94,8 @@ def find_connected_components(args):
     rows = session.execute("SELECT DISTINCT hashtable FROM %s" % table)
     hashtables = sorted(r.hashtable for r in rows)
     log.info("Detected %d hashtables", len(hashtables))
+
+    # Read buckets from database
     buckets = []
     element_ids = {}
     prev_len = 0
@@ -107,24 +137,8 @@ def find_connected_components(args):
     log.log(levels[nb == len(hashtables)], "Max number of buckets per element: %s", nb)
     log.info("Running CC analysis")
 
-    unvisited_buckets = set(range(len(buckets)))
-    connected_components_element = defaultdict(set)
-
-    cc_id = 0  # connected component counter
-    while unvisited_buckets:
-        pending = {unvisited_buckets.pop()}
-        while pending:
-            bucket = pending.pop()
-            elements = buckets[bucket]
-            connected_components_element[cc_id].update(elements)
-            for element in elements:
-                element_buckets = element_to_buckets[element]
-                for b in element_buckets:
-                    if b in unvisited_buckets:
-                        pending.add(b)
-                        unvisited_buckets.remove(b)
-        # increase number of connected components
-        cc_id += 1
+    # Connect components
+    connected_components_element = _find_connected_component(buckets, element_to_buckets)
     log.info("CC number: %d", len(connected_components_element))
 
     log.info("Writing %s", args.output)
