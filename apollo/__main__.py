@@ -34,7 +34,7 @@ def get_parser() -> argparse.ArgumentParser:
 
     def add_features_arg(my_parser, required: bool, suffix="."):
         my_parser.add_argument(
-            "-f", "--feature", nargs="+",
+            "-f", "--feature", action="append",
             choices=[ex.NAME for ex in extractors.__extractors__.values()],
             required=required, help="The feature extraction scheme to apply" + suffix)
         for ex in extractors.__extractors__.values():
@@ -88,7 +88,7 @@ def get_parser() -> argparse.ArgumentParser:
         help="The programming language to analyse.")
     default_fields = ["blob_id", "repository_id", "content", "path", "commit_hash", "uast"]
     preprocessing_parser.add_argument(
-        "-f", "--fields", nargs="+", default=default_fields,
+        "-f", "--fields", action="append", default=default_fields,
         help="Fields to select from DF to save.")
     add_engine_args(preprocessing_parser)
 
