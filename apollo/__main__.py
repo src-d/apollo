@@ -18,7 +18,7 @@ from apollo.query import query
 from apollo.warmup import warmup
 
 
-ENGINE_VERSION = "0.3.1"
+ENGINE_VERSION = "0.3.4"
 CASSANDRA_PACKAGE = "com.datastax.spark:spark-cassandra-connector_2.11:2.0.3"
 
 
