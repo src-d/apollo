@@ -84,6 +84,16 @@ in your browser. There multiple Docker options available, e.g.
 [1](https://github.com/psycofdj/docker-grip), [2](https://github.com/fstab/docker-grip),
 [3](https://github.com/kba/grip-docker).
 
+### Contributions
+
+...are welcome! See [CONTRIBUTING](CONTRIBUTING.md) and [code of conduct](CODE_OF_CONDUCT.md).
+
+### License
+
+[GPL](LICENSE.md).
+
+## Docker command snippets
+
 ### Bags
 
 ```
@@ -140,7 +150,3 @@ docker run -it --rm -v /path/to/io:/io srcd/apollo cmd -i /io/ccs.asdf -o /io/co
 ```
 docker run -it --rm -v /path/to/io:/io srcd/apollo dumpcmd /io/communities.asdf | grip -b -
 ```
-
-## License
-
-[GPL](LICENSE.md).
