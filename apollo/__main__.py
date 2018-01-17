@@ -42,6 +42,13 @@ def get_parser() -> argparse.ArgumentParser:
                 my_parser.add_argument("--%s-%s" % (ex.NAME, opt), default=val, type=json.loads,
                                        help="%s's kwarg" % ex.__name__)
 
+    def add_feature_weight_arg(my_parser):
+        help_desc = "%s's weight - all features from this extractor will be multiplied by this " \
+                  "factor"
+        for ex in extractors.__extractors__.values():
+            my_parser.add_argument("--%s-weight" % ex.NAME, default=1, type=float,
+                                   help=help_desc % ex.__name__)
+
     def add_cassandra_args(my_parser):
         my_parser.add_argument(
             "--cassandra", default="0.0.0.0:9042", help="Cassandra's host:port.")
@@ -142,9 +149,12 @@ def get_parser() -> argparse.ArgumentParser:
                              help="MinHashCUDA logs verbosity level.")
     hash_parser.add_argument("--devices", type=int, default=0,
                              help="Or-red indices of NVIDIA devices to use. 0 means all.")
+    hash_parser.add_argument("--docfreq", default=None,
+                             help="Path to OrderedDocumentFrequencies (file mode).")
     add_wmh_args(hash_parser, "Path to the output file with WMH parameters.", True, True)
     add_cassandra_args(hash_parser)
     add_spark_args(hash_parser, default_packages=[CASSANDRA_PACKAGE])
+    add_feature_weight_arg(hash_parser)
 
     query_parser = subparsers.add_parser("query", help="Query for similar files.")
     query_parser.set_defaults(handler=query)
