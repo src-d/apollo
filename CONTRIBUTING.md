@@ -32,7 +32,7 @@ issue you're facing, or it's a known issue that we're already aware of.
 
 ## How to Contribute
 
-Pull Requests (PRs) are the main and exclusive way to contribute to the official go-git project.
+Pull Requests (PRs) are the main and exclusive way to contribute to the official Apollo project.
 In order for a PR to be accepted it needs to pass a list of requirements:
 
 - Code Coverage does not decrease.
