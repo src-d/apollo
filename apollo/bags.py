@@ -3,10 +3,11 @@ import os
 from uuid import uuid4
 
 
-from sourced.ml.utils import create_engine
+from sourced.ml.utils import create_engine, EngineConstants
 from sourced.ml.extractors import __extractors__
 from sourced.ml.transformers import UastExtractor, Transformer, Cacher, UastDeserializer, Engine, \
-    FieldsSelector, ParquetSaver, Repo2WeightedSet, Repo2DocFreq, Repo2Quant, BagsBatchSaver, BagsBatcher
+    FieldsSelector, ParquetSaver, Uast2TermFreq, Uast2DocFreq, Uast2Quant, BagsBatchSaver, \
+    BagsBatcher, Indexer, TFIDF
 
 from pyspark.sql.types import Row
 
@@ -20,7 +21,9 @@ class BagsSaver(Transformer):
         self.table = table
 
     def __call__(self, head):
-        rows = head.flatMap(self.explode)
+        rows = head.map(lambda row: Row(sha1=row.document,
+                                        item=row.token,
+                                        value=float(row.value)))
         if self.explained:
             self._log.info("toDebugString():\n%s", rows.toDebugString().decode())
         rows.toDF() \
@@ -29,11 +32,6 @@ class BagsSaver(Transformer):
             .mode("append") \
             .options(table=self.table, keyspace=self.keyspace) \
             .save()
-
-    def explode(self, record):
-        key = record[0]
-        for col, val in record[1].items():
-            yield Row(sha1=key, item=col, value=float(val))
 
 
 class MetadataSaver(Transformer):
@@ -93,6 +91,7 @@ def preprocess_source(args):
 
 def source2bags(args):
     log = logging.getLogger("bags")
+    document_column_name = EngineConstants.Columns.BlobId
     if os.path.exists(args.batches):
         log.critical("%s must not exist", args.batches)
         return 1
@@ -111,13 +110,17 @@ def source2bags(args):
             uasts = uasts.link(Cacher(args.persist))
         uasts.link(MetadataSaver(args.keyspace, args.tables["meta"]))
         uasts = uasts.link(UastDeserializer())
-        uasts.link(Repo2Quant(extractors, args.nb_partitions))
-        uasts.link(Repo2DocFreq(extractors))
-        pipeline.explode()
-        bags = uasts.link(Repo2WeightedSet(extractors))
-        if args.persist is not None:
-            bags = bags.link(Cacher(args.persist))
-        batcher = bags.link(BagsBatcher(extractors))
+
+        # TODO(zurk): Fix and add Uast2Quant part
+        df_transformer = Uast2DocFreq(extractors, document_column_name)
+        df_pipeline = uasts.link(df_transformer)
+        df = df_pipeline.execute()
+        tf_pipeline = uasts.link(Uast2TermFreq(extractors, document_column_name))
+        tf = tf_pipeline.execute()
+
+        bags = TFIDF(tf=tf, df=df) \
+            .link(Cacher.maybe(args.persist))
+        batcher = bags.link(BagsBatcher(df, df_transformer.ndocs))
         batcher.link(BagsBatchSaver(args.batches, batcher))
         bags.link(BagsSaver(args.keyspace, args.tables["bags"]))
         bags.explode()
