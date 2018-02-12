@@ -70,7 +70,7 @@ def reset_db(args):
         cql("CREATE TABLE %s (sha1 ascii, item ascii, value float, PRIMARY KEY (sha1, item))"
             % tables["bags"])
         cql("CREATE TABLE %s (sha1 ascii, repo text, commit ascii, path text, "
-            "PRIMARY KEY (sha1, repo))" % tables["meta"])
+            "PRIMARY KEY (sha1, repo, path))" % tables["meta"])
     else:
         cql("DROP TABLE IF EXISTS %s" % tables["hashes"])
         cql("DROP TABLE IF EXISTS %s" % tables["hashtables"])
