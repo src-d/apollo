@@ -80,7 +80,7 @@ def weighted_jaccard(vec1, vec2):
 
 
 def format_url(repo, commit, path):
-    if repo.startswith("github.com"):
+    if repo.startswith("github.com") or repo.startswith("gitlab.com"):
         return "https://%s/blob/%s/%s" % (repo, commit, path)
     if repo.startswith("bitbucket.org"):
         return "https://%s/src/%s/%s" % (repo, commit, path)
