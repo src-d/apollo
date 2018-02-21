@@ -10,7 +10,7 @@ from pyspark.sql.types import Row
 from scipy.integrate import quad as integrate
 from sourced.ml.models import OrderedDocumentFrequencies
 from sourced.ml.utils import create_spark
-from sourced.ml.transformers import BagsBatchParquetLoader
+from sourced.ml.transformers.bow_writer import BOWLoader
 from sourced.ml.extractors import __extractors__
 
 from apollo import cassandra_utils
@@ -133,22 +133,12 @@ def modify_feature_weights(batches, arguments, **kwargs):
 def hash_batches(args):
     log = logging.getLogger("hash")
     log.info("Loading files from %s", args.input)
-    loader = BagsBatchParquetLoader(args.input)
-    batches = list(loader)
-    log.info("%d batches, shapes: %s", len(batches),
-             ", ".join(str(b.matrix.shape) for b in batches))
+    loader = BOWLoader(args.input)
+    log.info("%d batches", len(loader))
 
     # Check batches
-    if not batches:
+    if not loader:
         return
-    voc_size = batches[0].matrix.shape[-1]
-    for b in batches:
-        if b.matrix.shape[-1] != voc_size:
-            raise ValueError("The vocabulary sizes does not match: %d != %d"
-                             % (b.matrix.shape[-1], voc_size))
-
-    # Modify features if needed
-    batches = modify_feature_weights(batches, args)
 
     htnum, band_size = calc_hashtable_params(
         args.threshold, args.size, args.false_positive_weight, args.false_negative_weight)
@@ -156,26 +146,35 @@ def hash_batches(args):
     log.info("Band size: %d", band_size)
     cassandra_utils.configure(args)
     spark = create_spark("hash-%s" % uuid4(), **args.__dict__).sparkContext
-
-    log.info("Initializing the generator")
-    deferred = os.path.isfile(args.params)
     import libMHCUDA  # delayed import which requires CUDA and friends
-    gen = libMHCUDA.minhash_cuda_init(
-        voc_size, args.size, seed=args.seed, devices=args.devices, verbosity=args.mhc_verbosity,
-        deferred=deferred)
-    if deferred:
-        model = WeightedMinHashParameters().load(args.params)
-        libMHCUDA.minhash_cuda_assign_vars(gen, model.rs, model.ln_cs, model.betas)
-    else:
-        log.info("Writing %s", args.params)
-        params = libMHCUDA.minhash_cuda_retrieve_vars(gen)
-        WeightedMinHashParameters().construct(*params).save(args.params)
     tables = args.tables
+    gen = voc_size = None
     try:
-        for i, batch in enumerate(batches):
-            log.info("Processing batch %d / %d", i + 1, len(batches))
-            hashes = libMHCUDA.minhash_cuda_calc(gen, batch.matrix)
-            job = [(k, h) for k, h in zip(batch.keys, hashes)]
+        for i, bow in enumerate(loader):
+            if voc_size is None:
+                voc_size = bow.matrix.shape[-1]
+                log.info("Initializing the generator")
+                deferred = os.path.isfile(args.params)
+                gen = libMHCUDA.minhash_cuda_init(
+                    voc_size, args.size, seed=args.seed, devices=args.devices,
+                    verbosity=args.mhc_verbosity,
+                    deferred=deferred)
+                if deferred:
+                    model = WeightedMinHashParameters().load(args.params)
+                    libMHCUDA.minhash_cuda_assign_vars(gen, model.rs, model.ln_cs, model.betas)
+                else:
+                    log.info("Writing %s", args.params)
+                    params = libMHCUDA.minhash_cuda_retrieve_vars(gen)
+                    WeightedMinHashParameters().construct(*params).save(args.params)
+            if bow.matrix.shape[-1] != voc_size:
+                raise ValueError("The vocabulary sizes do not match: %d != %d"
+                                 % (bow.matrix.shape[-1], voc_size))
+            log.info("Processing batch %d / %d", i + 1, len(loader))
+            # Modify features if needed
+            # TODO(vmarkovtsev): port to the new structure
+            # batches = modify_feature_weights(batches, args)
+            hashes = libMHCUDA.minhash_cuda_calc(gen, bow.matrix)
+            job = [(k, h) for k, h in zip(bow.documents, hashes)]
             log.info("Saving the hashtables")
             df = spark.parallelize(job).flatMap(HashExploder(htnum, band_size)).toDF()
             df.write \
