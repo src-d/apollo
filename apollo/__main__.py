@@ -8,6 +8,8 @@ from igraph import Graph
 from modelforge.logs import setup_logging
 from sourced.ml import extractors
 from sourced.ml.utils import add_engine_args, add_spark_args
+from sourced.ml.cmd_entries.args import add_repo2_args, add_feature_args
+from sourced.ml.cmd_entries.repos2bow import add_bow_args
 
 from apollo.bags import preprocess_source, source2bags
 from apollo.cassandra_utils import reset_db
@@ -18,7 +20,7 @@ from apollo.query import query
 from apollo.warmup import warmup
 
 
-ENGINE_VERSION = "0.3.4"
+ENGINE_VERSION = "0.5.1"
 CASSANDRA_PACKAGE = "com.datastax.spark:spark-cassandra-connector_2.11:2.0.3"
 
 
@@ -31,16 +33,6 @@ def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("--log-level", default="INFO", choices=logging._nameToLevel,
                         help="Logging verbosity.")
-
-    def add_features_arg(my_parser, required: bool, suffix="."):
-        my_parser.add_argument(
-            "-f", "--feature", action="append",
-            choices=[ex.NAME for ex in extractors.__extractors__.values()],
-            required=required, help="The feature extraction scheme to apply" + suffix)
-        for ex in extractors.__extractors__.values():
-            for opt, val in ex.OPTS.items():
-                my_parser.add_argument("--%s-%s" % (ex.NAME, opt), default=val, type=json.loads,
-                                       help="%s's kwarg" % ex.__name__)
 
     def add_feature_weight_arg(my_parser):
         help_desc = "%s's weight - all features from this extractor will be multiplied by this " \
@@ -79,6 +71,11 @@ def get_parser() -> argparse.ArgumentParser:
                                help="Jinja2 template to render.")
         add_cassandra_args(my_parser)
 
+    def add_dzhigurda_arg(my_parser):
+        my_parser.add_argument(
+            "--dzhigurda", default=0, type=int,
+            help="Index of the examined commit in the history.")
+
     subparsers = parser.add_subparsers(help="Commands", dest="command")
 
     preprocessing_parser = subparsers.add_parser(
@@ -90,8 +87,7 @@ def get_parser() -> argparse.ArgumentParser:
     preprocessing_parser.add_argument(
         "-o", "--output", required=True,
         help="[OUT] The path to the Parquet files with bag batches.")
-    preprocessing_parser.add_argument(
-        "--dzhigurda", default=0, type=int, help="Index of the examined commit in the history.")
+    add_dzhigurda_arg(preprocessing_parser)
     preprocessing_parser.add_argument(
         "-l", "--language", choices=("Java", "Python"),
         help="The programming language to analyse.")
@@ -106,34 +102,10 @@ def get_parser() -> argparse.ArgumentParser:
     source2bags_parser = subparsers.add_parser(
         "bags", help="Convert source code to weighted sets.")
     source2bags_parser.set_defaults(handler=source2bags)
-    source2bags_parser.add_argument(
-        "-r", "--repositories", required=True,
-        help="The path to the repositories.")
-    source2bags_parser.add_argument(
-        "--batches", required=True,
-        help="[OUT] The path to the Parquet files with bag batches.")
-    source2bags_parser.add_argument(
-        "--docfreq", required=True,
-        help="[OUT] The path to the OrderedDocumentFrequencies model.")
-    source2bags_parser.add_argument(
-        "--vocabulary-size", default=10000000, type=int,
-        help="The maximum vocabulary size.")
-    source2bags_parser.add_argument(
-        "--min-docfreq", default=1, type=int,
-        help="The minimum document frequency of each element.")
-    source2bags_parser.add_argument(
-        "--nb-partitions", default=10, type=int,
-        help="Target number of quantization levels.")
-    add_features_arg(source2bags_parser, True)
-    source2bags_parser.add_argument(
-        "-l", "--language", choices=("Java", "Python"),
-        help="The programming language to analyse.")
-    source2bags_parser.add_argument(
-        "--graph", help="Write the tree in Graphviz format to this file.")
-    source2bags_parser.add_argument(
-        "--pause", action="store_true", help="Do not terminate in the end.")
-    source2bags_parser.add_argument(
-        "--dzhigurda", default=0, type=int, help="Index of the examined commit in the history.")
+    add_bow_args(source2bags_parser)
+    add_dzhigurda_arg(source2bags_parser)
+    add_repo2_args(source2bags_parser)
+    add_feature_args(source2bags_parser)
     add_cassandra_args(source2bags_parser)
     add_engine_args(source2bags_parser, default_packages=[CASSANDRA_PACKAGE])
 
@@ -168,7 +140,7 @@ def get_parser() -> argparse.ArgumentParser:
     query_parser.add_argument("--docfreq", help="Path to OrderedDocumentFrequencies (file mode).")
     query_parser.add_argument(
         "--bblfsh", default="localhost:9432", help="Babelfish server's endpoint.")
-    add_features_arg(query_parser, False, " (file mode).")
+    add_feature_args(query_parser, required=False)
     query_parser.add_argument("-x", "--precise", action="store_true",
                               help="Calculate the precise set.")
     add_wmh_args(query_parser, "Path to the Weighted MinHash parameters.", False, False)

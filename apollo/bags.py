@@ -2,13 +2,11 @@ import logging
 import os
 from uuid import uuid4
 
-
-from sourced.ml.utils import create_engine, EngineConstants
-from sourced.ml.extractors import __extractors__
-from sourced.ml.transformers import UastExtractor, Transformer, Cacher, UastDeserializer, Engine, \
-    FieldsSelector, ParquetSaver, Uast2TermFreq, Uast2DocFreq, Uast2Quant, BagsBatchSaver, \
-    BagsBatcher, Indexer, TFIDF
-
+from sourced.ml.cmd_entries.repos2bow import repos2bow_entry_template
+from sourced.ml.utils import create_engine
+from sourced.ml.transformers import UastExtractor, Transformer, Ignition, \
+    FieldsSelector, ParquetSaver
+from sourced.ml.utils.engine import pause, pipeline_graph
 from pyspark.sql.types import Row
 
 from apollo import cassandra_utils
@@ -68,6 +66,7 @@ class DzhigurdaFiles(Transformer):
         return chosen.tree_entries.blobs
 
 
+@pause
 def preprocess_source(args):
     log = logging.getLogger("preprocess_source")
     if os.path.exists(args.output):
@@ -76,60 +75,20 @@ def preprocess_source(args):
     if not args.config:
         args.config = []
 
-    try:
-        engine = create_engine("source2bags-%s" % uuid4(), **args.__dict__)
-        pipeline = Engine(engine, explain=args.explain).link(DzhigurdaFiles(args.dzhigurda))
-        uasts = pipeline.link(UastExtractor(languages=[args.language]))
-        fields = uasts.link(FieldsSelector(fields=args.fields))
-        saver = fields.link(ParquetSaver(save_loc=args.output))
-
-        saver.explode()
-    finally:
-        if args.pause:
-            input("Press Enter to exit...")
+    engine = create_engine("source2bags-%s" % uuid4(), **args.__dict__)
+    ignition = Ignition(engine, explain=args.explain)
+    ignition \
+        .link(DzhigurdaFiles(args.dzhigurda)) \
+        .link(UastExtractor(languages=[args.language])) \
+        .link(FieldsSelector(fields=args.fields)) \
+        .link(ParquetSaver(save_loc=args.output)) \
+        .execute()
+    pipeline_graph(args, log, ignition)
 
 
 def source2bags(args):
-    log = logging.getLogger("bags")
-    document_column_name = EngineConstants.Columns.BlobId
-    if os.path.exists(args.batches):
-        log.critical("%s must not exist", args.batches)
-        return 1
-    if not args.config:
-        args.config = []
-    try:
-        cassandra_utils.configure(args)
-        engine = create_engine("source2bags-%s" % uuid4(), **args.__dict__)
-        log.info("Enabled extractors: %s", args.feature)
-        extractors = [__extractors__[s](
-            args.min_docfreq, **__extractors__[s].get_kwargs_fromcmdline(args))
-            for s in args.feature]
-        pipeline = Engine(engine, explain=args.explain).link(DzhigurdaFiles(args.dzhigurda))
-        uasts = pipeline.link(UastExtractor(languages=[args.language]))
-        if args.persist is not None:
-            uasts = uasts.link(Cacher(args.persist))
-        uasts.link(MetadataSaver(args.keyspace, args.tables["meta"]))
-        uasts = uasts.link(UastDeserializer())
-
-        # TODO(zurk): Fix and add Uast2Quant part
-        df_transformer = Uast2DocFreq(extractors, document_column_name)
-        df_pipeline = uasts.link(df_transformer)
-        df = df_pipeline.execute()
-        tf_pipeline = uasts.link(Uast2TermFreq(extractors, document_column_name))
-        tf = tf_pipeline.execute()
-
-        bags = TFIDF(tf=tf, df=df) \
-            .link(Cacher.maybe(args.persist))
-        batcher = bags.link(BagsBatcher(df, df_transformer.ndocs))
-        batcher.link(BagsBatchSaver(args.batches, batcher))
-        bags.link(BagsSaver(args.keyspace, args.tables["bags"]))
-        bags.explode()
-        log.info("Writing docfreq to %s", args.docfreq)
-        batcher.model.save(args.docfreq)
-        if args.graph:
-            log.info("Dumping the graph to %s", args.graph)
-            with open(args.graph, "w") as f:
-                pipeline.graph(stream=f)
-    finally:
-        if args.pause:
-            input("Press Enter to exit...")
+    cassandra_utils.configure(args)
+    return repos2bow_entry_template(
+        args,
+        select=lambda: DzhigurdaFiles(args.dzhigurda),
+        before_deserialize=lambda: MetadataSaver(args.keyspace, args.tables["meta"]))
