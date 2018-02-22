@@ -141,7 +141,7 @@ def get_parser() -> argparse.ArgumentParser:
     query_parser.add_argument(
         "--bblfsh", default="localhost:9432", help="Babelfish server's endpoint.")
     add_feature_args(query_parser, required=False)
-    query_parser.add_argument("-x", "--precise", action="store_true",
+    query_parser.add_argument("--precise", action="store_true",
                               help="Calculate the precise set.")
     add_wmh_args(query_parser, "Path to the Weighted MinHash parameters.", False, False)
     add_template_args(query_parser, "query.md.jinja2")
