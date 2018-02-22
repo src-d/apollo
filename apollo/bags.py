@@ -91,4 +91,4 @@ def source2bags(args):
     return repos2bow_entry_template(
         args,
         select=lambda: DzhigurdaFiles(args.dzhigurda),
-        before_deserialize=lambda: MetadataSaver(args.keyspace, args.tables["meta"]))
+        cache_hook=lambda: MetadataSaver(args.keyspace, args.tables["meta"]))
