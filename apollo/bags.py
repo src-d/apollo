@@ -39,7 +39,7 @@ class MetadataSaver(Transformer):
         self.table = table
 
     def __call__(self, head):
-        rows = head.rdd.map(lambda x: Row(
+        rows = head.map(lambda x: Row(
             sha1=x.blob_id, repo=x.repository_id, commit=x.commit_hash, path=x.path))
         if self.explained:
             self._log.info("toDebugString():\n%s", rows.toDebugString().decode())
