@@ -5,6 +5,12 @@ services:
 cache:
   directories:
   - "$HOME/.cache/pip"
+addons:
+  apt:
+    packages:
+      - libboost-all-dev
+      - libxml2-dev
+      - libsnappy-dev
 _install: &_install
   - gimme 1.8
   - source ~/.gimme/envs/latest.env
