@@ -20,8 +20,8 @@ setup(
     install_requires=["cassandra_driver >= 3.12.0, <4.0",
                       "libMHCUDA >= 2.0, <3.0",
                       "jinja2 >=2.0, <3.0",
-                      "python-igraph >= 0.7, <2.0"],
-                      # "sourcedml >= 0.4.0, <1.0"],
+                      "python-igraph >= 0.7, <2.0",
+                      "sourced-ml >= 0.4.4, <0.5"],
     package_data={"": ["LICENSE", "README.md"] + glob(path.join("apollo", "*.jinja2"))},
     classifiers=[
         "Development Status :: 3 - Alpha",
