@@ -89,7 +89,8 @@ def get_parser() -> argparse.ArgumentParser:
         help="[OUT] The path to the Parquet files with bag batches.")
     add_dzhigurda_arg(preprocessing_parser)
     preprocessing_parser.add_argument(
-        "-l", "--language", choices=("Java", "Python"),
+        "-l", "--languages", action="append",
+        choices=("Java", "Python", "Go", "JavaScript", "PHP", "Ruby"),
         help="The programming language to analyse.")
     preprocessing_parser.add_argument(
         "--pause", action="store_true", help="Do not terminate in the end.")
