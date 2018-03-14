@@ -79,7 +79,7 @@ def preprocess_source(args):
     ignition = Ignition(engine, explain=args.explain)
     ignition \
         .link(DzhigurdaFiles(args.dzhigurda)) \
-        .link(UastExtractor(languages=[args.language])) \
+        .link(UastExtractor(languages=args.languages)) \
         .link(FieldsSelector(fields=args.fields)) \
         .link(ParquetSaver(save_loc=args.output)) \
         .execute()
