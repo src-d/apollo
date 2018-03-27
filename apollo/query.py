@@ -101,4 +101,4 @@ def stream_template(name, dest, **kwargs):
     )
     template = loader.load(env, name)
     log.info("Rendering")
-    template.stream(**kwargs, format_url=format_url).dump(dest)
+    template.stream(format_url=format_url, **kwargs).dump(dest)
