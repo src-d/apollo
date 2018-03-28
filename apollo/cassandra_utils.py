@@ -36,10 +36,14 @@ def configure(args):
 def get_db(args):
     log = logging.getLogger("cassandra")
     patch_tables(args)
-    cashost, casport = args.cassandra.split(":")
+    try:
+        cas_host, cas_port = args.cassandra.split(":")
+    except ValueError:
+        cas_host = args.cassandra
+        cas_port = "9042"
 
     def get_cluster():
-        return Cluster((cashost,), port=int(casport),
+        return Cluster((cas_host,), port=int(cas_port),
                        load_balancing_policy=RoundRobinPolicy())
     cluster = get_cluster()
     log.info("Connecting to %s", args.cassandra)
