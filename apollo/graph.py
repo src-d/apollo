@@ -279,8 +279,9 @@ class CommunityDetector:
             kwargs = {"weights": graph.edge_weights}
         if self.algorithm == "edge_betweenness":
             kwargs["directed"] = False
-        result = action(**kwargs, **self.config)
-
+        # TODO: Rollback to action(**kwargs, **self.config) when support for Python3.4 is over
+        kwargs.update(self.config)
+        result = action(**kwargs)
         if hasattr(result, "as_clustering"):
             result = result.as_clustering()
 
