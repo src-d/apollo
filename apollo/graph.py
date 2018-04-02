@@ -279,7 +279,8 @@ class CommunityDetector:
             kwargs = {"weights": graph.edge_weights}
         if self.algorithm == "edge_betweenness":
             kwargs["directed"] = False
-        result = action(**kwargs, **self.config)
+        kwargs.update(self.config)
+        result = action(**kwargs)
 
         if hasattr(result, "as_clustering"):
             result = result.as_clustering()
@@ -326,7 +327,7 @@ class BatchedCommunityResolver:
         for i, community in enumerate(model.communities):
             for j in community:
                 try:
-                    yield id_to_element[j], i
+                    yield id_to_element[j].split("@")[1], i
                 except IndexError:
                     continue
 
@@ -353,7 +354,7 @@ class CommunityEvaluator:
         if len(elements) == 1:
             return (0,) * 4
         for key, vals in elements.items():
-            vec  = numpy.zeros(self.vocabulary_size, dtype=numpy.float32)
+            vec = numpy.zeros(self.vocabulary_size, dtype=numpy.float32)
             for i, w in vals:
                 vec[i] = w
             elements[key] = vec
