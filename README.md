@@ -114,8 +114,7 @@ docker run -it --rm -v /path/to/io:/io --link scylla srcd/apollo hash /io/batche
 
 ```
 docker run -it --rm -v /path/to/io:/io --link scylla srcd/apollo query -i <sha1> --precise \
---docfreq /io/bags/docfreq.asdf -t 0.8 --cassandra scylla | docker -it --rm --link scylla \
-srcd/apollo urls --cassandra scylla
+--docfreq /io/bags/docfreq.asdf -t 0.8 --cassandra scylla
 ```
 
 ### Query file
@@ -135,8 +134,7 @@ docker run -it --rm -v /path/to/io:/io --link scylla srcd/apollo cc -o /io/ccs.a
 ### Dump connected components
 
 ```
-docker run -it --rm -v /path/to/io:/io srcd/apollo dumpcc -o /io/ccs.asdf | docker -it --rm \
---link scylla srcd/apollo urls --cassandra scylla 
+docker run -it --rm -v /path/to/io:/io srcd/apollo dumpcc -o /io/ccs.asdf
 ```
 
 ### Community detection
