@@ -3,9 +3,7 @@ import os
 from uuid import uuid4
 
 from sourced.ml.cmd_entries.repos2bow import repos2bow_entry_template
-from sourced.ml.utils import create_engine
-from sourced.ml.transformers import UastExtractor, Transformer, Ignition, \
-    FieldsSelector, ParquetSaver
+from sourced.ml.transformers import Transformer, FieldsSelector, ParquetSaver, create_uast_source
 from sourced.ml.utils.engine import pause, pipeline_graph
 from pyspark.sql.types import Row
 
@@ -70,21 +68,21 @@ class DzhigurdaFiles(Transformer):
 @pause
 def preprocess_source(args):
     log = logging.getLogger("preprocess_source")
+    session_name = "preprocess_source-%s" % uuid4()
+
     if os.path.exists(args.output):
         log.critical("%s must not exist", args.output)
         return 1
     if not args.config:
         args.config = []
+    root, start_point = create_uast_source(args, session_name,
+                                           select=lambda: DzhigurdaFiles(args.dzhigurda))
 
-    engine = create_engine("source2bags-%s" % uuid4(), **args.__dict__)
-    ignition = Ignition(engine, explain=args.explain)
-    ignition \
-        .link(DzhigurdaFiles(args.dzhigurda)) \
-        .link(UastExtractor(languages=args.languages)) \
+    start_point \
         .link(FieldsSelector(fields=args.fields)) \
         .link(ParquetSaver(save_loc=args.output)) \
         .execute()
-    pipeline_graph(args, log, ignition)
+    pipeline_graph(args, log, root)
 
 
 def source2bags(args):
