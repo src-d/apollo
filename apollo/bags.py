@@ -30,6 +30,7 @@ class BagsSaver(Transformer):
             .mode("append") \
             .options(table=self.table, keyspace=self.keyspace) \
             .save()
+        return head
 
 
 class MetadataSaver(Transformer):
@@ -91,4 +92,5 @@ def source2bags(args):
     return repos2bow_entry_template(
         args,
         select=lambda: DzhigurdaFiles(args.dzhigurda),
-        cache_hook=lambda: MetadataSaver(args.keyspace, args.tables["meta"]))
+        cache_hook=lambda: MetadataSaver(args.keyspace, args.tables["meta"]),
+        save_hook=lambda: BagsSaver(args.keyspace, args.tables["bags"]))
