@@ -217,7 +217,11 @@ def hash_file(args):
         ex.ndocs = vocab.docs
         ex.docfreq = vocab
         for k, v in ex.extract(uast):
-            bag[vocab.order[k]] = v
+            try:
+                bag[vocab.order[k]] = v
+            except KeyError:
+                continue
+
     log.info("Bag size: %d", len(bag.nonzero()[0]))
     log.info("Hashing")
     return weighted_minhash(bag, params.rs.shape[0], params.rs, params.ln_cs, params.betas), bag
