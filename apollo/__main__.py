@@ -140,6 +140,9 @@ def get_parser() -> argparse.ArgumentParser:
     mode_group.add_argument("-c", "--file", help="Query for this file (file mode).")
     query_parser.add_argument("--docfreq", help="Path to OrderedDocumentFrequencies (file mode).")
     query_parser.add_argument(
+        "--min-docfreq", default=1, type=int,
+        help="The minimum document frequency of each feature.")
+    query_parser.add_argument(
         "--bblfsh", default="localhost:9432", help="Babelfish server's endpoint.")
     add_feature_args(query_parser, required=False)
     query_parser.add_argument("--precise", action="store_true",
