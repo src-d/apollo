@@ -12,6 +12,7 @@ from sourced.ml.models import OrderedDocumentFrequencies
 from sourced.ml.utils import create_spark
 from sourced.ml.transformers.bow_writer import BOWLoader
 from sourced.ml.extractors import __extractors__
+from sourced.ml.algorithms import log_tf_log_idf
 
 from apollo import cassandra_utils
 
@@ -218,16 +219,23 @@ def hash_file(args):
         ex.docfreq = vocab
         for k, v in ex.extract(uast):
             try:
-                bag[vocab.order[k]] = v
+                i = vocab.order[k]
+                bag[i] = log_tf_log_idf(df=vocab[k], tf=v, ndocs=vocab.docs)
             except KeyError:
                 continue
 
     log.info("Bag size: %d", len(bag.nonzero()[0]))
     log.info("Hashing")
+
     return weighted_minhash(bag, params.rs.shape[0], params.rs, params.ln_cs, params.betas), bag
 
 
 def weighted_minhash(v, sample_size, rs, ln_cs, betas):
+    if sample_size != rs.shape[0]:
+        raise ValueError("Input sample size mismatch, expecting %d" % rs.shape[0])
+    if len(v) != rs.shape[1]:
+        raise ValueError("Input dimension mismatch, expecting %d" % rs.shape[1])
+
     hashvalues = numpy.zeros((sample_size, 2), dtype=numpy.uint32)
     vzeros = (v == 0)
     if vzeros.all():

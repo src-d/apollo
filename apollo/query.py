@@ -70,6 +70,8 @@ def query(args):
         except KeyError:
             # o_O
             pass
+
+    similar = [s.split("@")[1] for s in similar]
     stream_template(args.template, sys.stdout, size=len(similar),
                     origin=args.id if args.id else os.path.abspath(args.file),
                     items=BatchedHashResolver(similar, args.batch, session, tables["meta"]))
