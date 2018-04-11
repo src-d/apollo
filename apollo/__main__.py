@@ -2,14 +2,16 @@ import argparse
 import json
 import logging
 import sys
+import pip
 from time import time
 
 from igraph import Graph
 from modelforge.logs import setup_logging
 from sourced.ml import extractors
 from sourced.ml.utils import add_engine_args, add_spark_args
-from sourced.ml.cmd_entries.args import add_repo2_args, add_feature_args
-from sourced.ml.cmd_entries.repos2bow import add_bow_args
+from sourced.ml.cmd_entries import ArgumentDefaultsHelpFormatterNoNone
+from sourced.ml.cmd_entries.args import add_bow_args, add_feature_args, add_repo2_args
+
 
 from apollo.bags import preprocess_source, source2bags
 from apollo.cassandra_utils import reset_db
@@ -20,17 +22,17 @@ from apollo.query import query
 from apollo.warmup import warmup
 
 
-ENGINE_VERSION = "0.5.1"
+ENGINE_VERSION = {pkg.key: pkg.version for pkg in
+                  pip.get_installed_distributions()}["sourced-engine"]
+
 CASSANDRA_PACKAGE = "com.datastax.spark:spark-cassandra-connector_2.11:2.0.3"
 
 
 def get_parser() -> argparse.ArgumentParser:
     """
-    Create main parser.
-
-    :return: Parser
+    Create the cmdline argument parser.
     """
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatterNoNone)
     parser.add_argument("--log-level", default="INFO", choices=logging._nameToLevel,
                         help="Logging verbosity.")
 
@@ -69,56 +71,58 @@ def get_parser() -> argparse.ArgumentParser:
                                help="Number of hashes to query at a time.")
         my_parser.add_argument("--template", default=default_template,
                                help="Jinja2 template to render.")
-        add_cassandra_args(my_parser)
 
     def add_dzhigurda_arg(my_parser):
         my_parser.add_argument(
             "--dzhigurda", default=0, type=int,
             help="Index of the examined commit in the history.")
 
+    # Create and construct subparsers
     subparsers = parser.add_subparsers(help="Commands", dest="command")
 
-    preprocessing_parser = subparsers.add_parser(
-        "preprocess", help="Generate the dataset with good candidates for duplication.")
-    preprocessing_parser.set_defaults(handler=preprocess_source)
-    preprocessing_parser.add_argument(
-        "-r", "--repositories", required=True,
-        help="The path to the siva files with repositories.")
-    preprocessing_parser.add_argument(
-        "-o", "--output", required=True,
-        help="[OUT] The path to the Parquet files with bag batches.")
-    add_dzhigurda_arg(preprocessing_parser)
-    preprocessing_parser.add_argument(
-        "-l", "--languages", action="append",
-        choices=("Java", "Python", "Go", "JavaScript", "PHP", "Ruby"),
-        help="The programming language to analyse.")
-    preprocessing_parser.add_argument(
-        "--pause", action="store_true", help="Do not terminate in the end.")
-    default_fields = ["blob_id", "repository_id", "content", "path", "commit_hash", "uast"]
-    preprocessing_parser.add_argument(
-        "-f", "--fields", action="append", default=default_fields,
-        help="Fields to select from DF to save.")
-    add_engine_args(preprocessing_parser)
-
-    source2bags_parser = subparsers.add_parser(
-        "bags", help="Convert source code to weighted sets.")
-    source2bags_parser.set_defaults(handler=source2bags)
-    add_bow_args(source2bags_parser)
-    add_dzhigurda_arg(source2bags_parser)
-    add_repo2_args(source2bags_parser)
-    add_feature_args(source2bags_parser)
-    add_cassandra_args(source2bags_parser)
-    add_engine_args(source2bags_parser, default_packages=[CASSANDRA_PACKAGE])
-
+    # ------------------------------------------------------------------------
     warmup_parser = subparsers.add_parser(
         "warmup", help="Initialize source{d} engine.")
     warmup_parser.set_defaults(handler=warmup)
     add_engine_args(warmup_parser, default_packages=[CASSANDRA_PACKAGE])
 
+    # ------------------------------------------------------------------------
+    db_parser = subparsers.add_parser("resetdb", help="Destructively initialize the database.")
+    db_parser.set_defaults(handler=reset_db)
+    add_cassandra_args(db_parser)
+    db_parser.add_argument(
+        "--hashes-only", action="store_true",
+        help="Only clear the tables: hashes, hashtables, hashtables2. Do not touch the rest.")
+
+    # ------------------------------------------------------------------------
+    preprocessing_parser = subparsers.add_parser(
+        "preprocess", help="Generate the dataset with good candidates for duplication.")
+    preprocessing_parser.set_defaults(handler=preprocess_source)
+    add_repo2_args(preprocessing_parser)
+    add_dzhigurda_arg(preprocessing_parser)
+    preprocessing_parser.add_argument(
+        "-o", "--output", required=True,
+        help="[OUT] Path to the Parquet files with bag batches.")
+    default_fields = ["blob_id", "repository_id", "content", "path", "commit_hash", "uast"]
+    preprocessing_parser.add_argument(
+        "-f", "--fields", action="append", default=default_fields,
+        help="Fields to select from DF to save.")
+
+    # ------------------------------------------------------------------------
+    source2bags_parser = subparsers.add_parser(
+        "bags", help="Convert source code to weighted sets.")
+    source2bags_parser.set_defaults(handler=source2bags)
+    add_bow_args(source2bags_parser)
+    add_dzhigurda_arg(source2bags_parser)
+    add_repo2_args(source2bags_parser, default_packages=[CASSANDRA_PACKAGE])
+    add_feature_args(source2bags_parser)
+    add_cassandra_args(source2bags_parser)
+
+    # ------------------------------------------------------------------------
     hash_parser = subparsers.add_parser(
         "hash", help="Run MinHashCUDA on the bag batches.")
     hash_parser.set_defaults(handler=hash_batches)
-    hash_parser.add_argument("input",
+    hash_parser.add_argument("-i", "--input",
                              help="Path to the directory with Parquet files.")
     hash_parser.add_argument("--seed", type=int, default=int(time()),
                              help="Random generator's seed.")
@@ -133,49 +137,46 @@ def get_parser() -> argparse.ArgumentParser:
     add_spark_args(hash_parser, default_packages=[CASSANDRA_PACKAGE])
     add_feature_weight_arg(hash_parser)
 
+    # ------------------------------------------------------------------------
     query_parser = subparsers.add_parser("query", help="Query for similar files.")
     query_parser.set_defaults(handler=query)
     mode_group = query_parser.add_mutually_exclusive_group(required=True)
     mode_group.add_argument("-i", "--id", help="Query for this id (id mode).")
     mode_group.add_argument("-c", "--file", help="Query for this file (file mode).")
     query_parser.add_argument("--docfreq", help="Path to OrderedDocumentFrequencies (file mode).")
+    query_parser.add_argument("--min-docfreq", default=1, type=int,
+                              help="The minimum document frequency of each feature.")
     query_parser.add_argument(
-        "--min-docfreq", default=1, type=int,
-        help="The minimum document frequency of each feature.")
-    query_parser.add_argument(
-        "--bblfsh", default="localhost:9432", help="Babelfish server's endpoint.")
-    add_feature_args(query_parser, required=False)
+        "--bblfsh", default="localhost:9432", help="Babelfish server's address.")
     query_parser.add_argument("--precise", action="store_true",
                               help="Calculate the precise set.")
     add_wmh_args(query_parser, "Path to the Weighted MinHash parameters.", False, False)
+    add_feature_args(query_parser, required=False)
     add_template_args(query_parser, "query.md.jinja2")
+    add_cassandra_args(query_parser)
 
-    db_parser = subparsers.add_parser("resetdb", help="Destructively initialize the database.")
-    db_parser.set_defaults(handler=reset_db)
-    add_cassandra_args(db_parser)
-    db_parser.add_argument(
-        "--hashes-only", action="store_true",
-        help="Only clear the tables: hashes, hashtables, hashtables2. Do not touch the rest.")
-
+    # ------------------------------------------------------------------------
     cc_parser = subparsers.add_parser(
         "cc", help="Load the similar pairs of files and run connected components analysis.")
     cc_parser.set_defaults(handler=find_connected_components)
     add_cassandra_args(cc_parser)
-    cc_parser.add_argument("-o", "--output",
-                           help="Path to save the asdf file with connected components.")
+    cc_parser.add_argument("-o", "--output", required=True,
+                           help="[OUT] Path to connected components ASDF model.")
 
+    # ------------------------------------------------------------------------
     dumpcc_parser = subparsers.add_parser(
         "dumpcc", help="Output the connected components to stdout.")
     dumpcc_parser.set_defaults(handler=dumpcc)
-    dumpcc_parser.add_argument("input", help="Path to the asdf file with CCs.")
-
+    dumpcc_parser.add_argument("-i", "--input", required=True,
+                               help="Path to connected components ASDF model.")
+    # ------------------------------------------------------------------------
     community_parser = subparsers.add_parser(
         "cmd", help="Run Community Detection analysis on the connected components from \"cc\".")
     community_parser.set_defaults(handler=detect_communities)
     community_parser.add_argument("-i", "--input", required=True,
-                                  help="The path to connected components ASDF model.")
+                                  help="Path to connected components ASDF model.")
     community_parser.add_argument("-o", "--output", required=True,
-                                  help="Output path to the communities ASDF model.")
+                                  help="[OUT] Path to the communities ASDF model.")
     community_parser.add_argument("--edges", choices=("linear", "quadratic", "1", "2"),
                                   default="linear",
                                   help="The method to generate the graph's edges: bipartite - "
@@ -191,12 +192,15 @@ def get_parser() -> argparse.ArgumentParser:
     community_parser.add_argument("--no-spark", action="store_true", help="Do not use Spark.")
     add_spark_args(community_parser)
 
+    # ------------------------------------------------------------------------
     dumpcmd_parser = subparsers.add_parser(
         "dumpcmd", help="Output the detected communities to stdout.")
     dumpcmd_parser.set_defaults(handler=dumpcmd)
-    dumpcmd_parser.add_argument("input", help="Path to the asdf file with communities.")
+    dumpcmd_parser.add_argument("input", help="Path to the communities ASDF model.")
     add_template_args(dumpcmd_parser, "report.md.jinja2")
+    add_cassandra_args(dumpcmd_parser)
 
+    # ------------------------------------------------------------------------
     evalcc_parser = subparsers.add_parser(
         "evalcc", help="Evaluate the communities: calculate the precise similarity and the "
                        "fitness metric.")
@@ -210,13 +214,12 @@ def get_parser() -> argparse.ArgumentParser:
     add_cassandra_args(evalcc_parser)
 
     # TODO: retable [.....] -> [.] [.] [.] [.] [.]
-
     return parser
 
 
 def main():
     """
-    Creates all the argparse-rs and invokes the function from set_defaults().
+    Creates all the argument parsers and invokes the function from set_defaults().
 
     :return: The result of the function from set_defaults().
     """
