@@ -2,7 +2,6 @@ import argparse
 import json
 import logging
 import sys
-import pip
 from time import time
 
 from igraph import Graph
@@ -21,9 +20,6 @@ from apollo.hasher import hash_batches
 from apollo.query import query
 from apollo.warmup import warmup
 
-
-ENGINE_VERSION = {pkg.key: pkg.version for pkg in
-                  pip.get_installed_distributions()}["sourced-engine"]
 
 CASSANDRA_PACKAGE = "com.datastax.spark:spark-cassandra-connector_2.11:2.0.3"
 
