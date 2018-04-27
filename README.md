@@ -98,8 +98,8 @@ in your browser. There multiple Docker options available, e.g.
 
 ```
 docker run -it --rm -v /path/to/io:/io --link bblfshd --link scylla srcd/apollo bags -r /io/siva \
---bow /io/bags/bow.asdf --docfreq /io/bags/docfreq.asdf -f id -f lit -f uast2seq --uast2seq-seq-len 4 \
--l Java -s 'local[*]' --min-docfreq 5 --bblfsh bblfshd --cassandra scylla --persist MEMORY_ONLY \
+--bow /io/bags/bow.asdf --docfreq /io/bags/docfreq.asdf -f id lit uast2seq --uast2seq-seq-len 4 \
+-l Java Python -s 'local[*]' --min-docfreq 5 --bblfsh bblfshd --cassandra scylla --persist MEMORY_ONLY \
 --config spark.executor.memory=4G --config spark.driver.memory=10G --config spark.driver.maxResultSize=4G
 ```
 
