@@ -10,6 +10,7 @@ from sourced.ml import extractors
 from sourced.ml.utils import add_engine_args, add_spark_args
 from sourced.ml.cmd_entries import ArgumentDefaultsHelpFormatterNoNone
 from sourced.ml.cmd_entries.args import add_bow_args, add_feature_args, add_repo2_args, add_df_args
+from sourced.ml.transformers import Moder
 
 
 from apollo.bags import preprocess_source, source2bags
@@ -94,6 +95,8 @@ def get_parser() -> argparse.ArgumentParser:
     preprocessing_parser = subparsers.add_parser(
         "preprocess", help="Generate the dataset with good candidates for duplication.")
     preprocessing_parser.set_defaults(handler=preprocess_source)
+    preprocessing_parser.add_argument("-x", "--mode", choices=Moder.Options.__all__,
+                                      default="file", help="What to select for analysis.")
     add_repo2_args(preprocessing_parser)
     add_dzhigurda_arg(preprocessing_parser)
     preprocessing_parser.add_argument(
