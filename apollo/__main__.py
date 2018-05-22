@@ -9,7 +9,7 @@ from modelforge.logs import setup_logging
 from sourced.ml import extractors
 from sourced.ml.utils import add_engine_args, add_spark_args
 from sourced.ml.cmd_entries import ArgumentDefaultsHelpFormatterNoNone
-from sourced.ml.cmd_entries.args import add_bow_args, add_feature_args, add_repo2_args
+from sourced.ml.cmd_entries.args import add_bow_args, add_feature_args, add_repo2_args, add_df_args
 
 
 from apollo.bags import preprocess_source, source2bags
@@ -113,6 +113,7 @@ def get_parser() -> argparse.ArgumentParser:
     add_repo2_args(source2bags_parser, default_packages=[CASSANDRA_PACKAGE])
     add_feature_args(source2bags_parser)
     add_cassandra_args(source2bags_parser)
+    add_df_args(source2bags_parser)
 
     # ------------------------------------------------------------------------
     hash_parser = subparsers.add_parser(
@@ -126,8 +127,6 @@ def get_parser() -> argparse.ArgumentParser:
                              help="MinHashCUDA logs verbosity level.")
     hash_parser.add_argument("--devices", type=int, default=0,
                              help="Or-red indices of NVIDIA devices to use. 0 means all.")
-    hash_parser.add_argument("--docfreq", default=None,
-                             help="Path to OrderedDocumentFrequencies (file mode).")
     add_wmh_args(hash_parser, "Path to the output file with WMH parameters.", True, True)
     add_cassandra_args(hash_parser)
     add_spark_args(hash_parser, default_packages=[CASSANDRA_PACKAGE])
