@@ -12,6 +12,7 @@ from sourced.ml.models import OrderedDocumentFrequencies
 from sourced.ml.utils import create_spark
 from sourced.ml.transformers.bow_writer import BOWLoader
 from sourced.ml.extractors import __extractors__
+from sourced.ml.extractors.helpers import filter_kwargs
 from sourced.ml.algorithms import log_tf_log_idf
 
 from apollo import cassandra_utils
@@ -146,7 +147,8 @@ def hash_batches(args):
     log.info("Number of hash tables: %d", htnum)
     log.info("Band size: %d", band_size)
     cassandra_utils.configure(args)
-    spark = create_spark("hash-%s" % uuid4(), **args.__dict__).sparkContext
+    spark_args = filter_kwargs(args.__dict__, create_spark)
+    spark = create_spark("hash-%s" % uuid4(), **spark_args).sparkContext
     import libMHCUDA  # delayed import which requires CUDA and friends
     tables = args.tables
     gen = voc_size = None
