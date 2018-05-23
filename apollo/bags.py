@@ -3,7 +3,8 @@ import os
 from uuid import uuid4
 
 from sourced.ml.cmd_entries.repos2bow import repos2bow_entry_template
-from sourced.ml.transformers import Transformer, FieldsSelector, ParquetSaver, create_uast_source
+from sourced.ml.transformers import Transformer, FieldsSelector, ParquetSaver, \
+    create_uast_source, Moder
 from sourced.ml.utils.engine import pause, pipeline_graph
 from pyspark.sql.types import Row
 
@@ -79,6 +80,7 @@ def preprocess_source(args):
                                            select=lambda: DzhigurdaFiles(args.dzhigurda))
 
     start_point \
+        .link(Moder(args.mode)) \
         .link(FieldsSelector(fields=args.fields)) \
         .link(ParquetSaver(save_loc=args.output)) \
         .execute()
