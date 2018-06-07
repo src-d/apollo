@@ -25,7 +25,7 @@ def test_generator(algorithm):
 
 
 if __name__ == "__main__":
-    algorithms = ["spinglass", "optimal_modularity", "multilevel","label_propagation",
+    algorithms = ["spinglass", "optimal_modularity", "multilevel", "label_propagation",
                   "leading_eigenvector", "leading_eigenvector", "infomap", "walktrap",
                   "fastgreedy"]
     for algorithm in algorithms:
@@ -35,4 +35,3 @@ if __name__ == "__main__":
     print([method for method in dir(CommunityDetectorTest)
            if "test_community_detection_" in method])
     unittest.main()
-

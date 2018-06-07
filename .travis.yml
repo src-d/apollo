@@ -5,12 +5,6 @@ services:
 cache:
   directories:
   - "$HOME/.cache/pip"
-addons:
-  apt:
-    packages:
-      - libboost-all-dev
-      - libxml2-dev
-      - libsnappy-dev
 _install: &_install
   - gimme 1.8
   - source ~/.gimme/envs/latest.env
@@ -37,11 +31,10 @@ matrix:
         - codecov
   fast_finish: true
 before_script:
-- docker run -d --privileged -p 9432:9432 --name bblfshd bblfsh/bblfshd
-- docker exec -it bblfshd bblfshctl driver install --all
-- docker run --name scylla -p 9042:9042 -d scylladb/scylla --developer-mode=1
+  - docker run -d --privileged -p 9432:9432 --name bblfshd bblfsh/bblfshd
+  - docker exec -it bblfshd bblfshctl driver install python bblfsh/python-driver
+  - docker run --name scylla -p 9042:9042 -d scylladb/scylla --developer-mode=1
 script:
-- echo Skipped
-#- (eval "$SCRIPT")
+  - (eval "$SCRIPT")
 notifications:
   email: false
