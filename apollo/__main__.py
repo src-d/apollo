@@ -8,8 +8,8 @@ from igraph import Graph
 from modelforge.logs import setup_logging
 from sourced.ml import extractors
 from sourced.ml.utils import add_engine_args, add_spark_args
-from sourced.ml.cmd_entries import ArgumentDefaultsHelpFormatterNoNone
-from sourced.ml.cmd_entries.args import add_bow_args, add_feature_args, add_repo2_args, add_df_args
+from sourced.ml.cmd import ArgumentDefaultsHelpFormatterNoNone
+from sourced.ml.cmd.args import add_bow_args, add_feature_args, add_repo2_args, add_df_args
 from sourced.ml.transformers import Moder
 
 
