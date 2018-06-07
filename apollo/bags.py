@@ -2,7 +2,7 @@ import logging
 import os
 from uuid import uuid4
 
-from sourced.ml.cmd_entries.repos2bow import repos2bow_entry_template
+from sourced.ml.cmd.repos2bow import repos2bow_entry_template
 from sourced.ml.transformers import Transformer, FieldsSelector, ParquetSaver, \
     create_uast_source, Moder
 from sourced.ml.utils.engine import pause, pipeline_graph
