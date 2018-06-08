@@ -179,7 +179,9 @@ def hash_batches(args):
             hashes = libMHCUDA.minhash_cuda_calc(gen, bow.matrix)
             job = [(k, h) for k, h in zip(bow.documents, hashes)]
             log.info("Saving the hashtables")
-            df = spark.parallelize(job).flatMap(HashExploder(htnum, band_size)).toDF()
+            df = spark.parallelize(job).flatMap(HashExploder(htnum, band_size)) \
+                .coalesce(args.partitions, args.shuffle) \
+                .toDF()
             df.write \
                 .format("org.apache.spark.sql.cassandra") \
                 .mode("append") \
@@ -193,6 +195,7 @@ def hash_batches(args):
             log.info("Saving the hashes")
             spark.parallelize(job) \
                 .map(lambda x: Row(sha1=x[0], value=bytearray(x[1].data))) \
+                .coalesce(args.partitions, args.shuffle) \
                 .toDF() \
                 .write \
                 .format("org.apache.spark.sql.cassandra") \

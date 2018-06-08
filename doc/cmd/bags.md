@@ -12,6 +12,8 @@ This command converts input repositories to unordered weighted bags of features 
 - `--min-docfreq`: Specific minimum document frequency of each feature, defaults to 1
 - `--docfreq`: Path to the output Ordered Document Frequency model
 - `-v`/`--vocabulary-size`: to specify the maximum vocabulary size, defaults to 10 million
+- `--partitions`: to repartition data, this will specify new number of partitions 
+- `--shuffle`: to repartition data, this will allow data shuffling (vital if number of partitions increases !) 
 - [Spark and Engine arguments](https://github.com/src-d/ml/blob/master/doc/spark.md)
 - [Cassandra/Scylla arguments](db.md)
 

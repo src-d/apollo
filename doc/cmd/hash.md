@@ -10,6 +10,8 @@ This command applies the MinHashCUDA algorithm on previously written batches, st
 - `--devices`: Index of NVIDIA device to use, defaults to 0 (all available)
 - `--docfreq`: Path to the input Ordered Document Frequency model
 - `--size`: Hash size, defaults to 128
+- `--partitions`: to repartition data, this will specify new number of partitions 
+- `--shuffle`: to repartition data, this will allow data shuffling (vital if number of partitions increases !) 
 - [Cassandra/Scylla arguments](db.md)
 - [Spark arguments](https://github.com/src-d/ml/blob/master/doc/spark.md)
 
