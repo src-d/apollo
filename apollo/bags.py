@@ -1,6 +1,6 @@
 from pyspark.sql.types import Row
 from sourced.ml.cmd.repos2bow import repos2bow_entry_template
-from sourced.ml.transformers import Transformer
+from sourced.ml.transformers import Transformer, DzhigurdaFiles
 
 from apollo import cassandra_utils
 
