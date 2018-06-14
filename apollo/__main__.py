@@ -10,11 +10,9 @@ from sourced.ml import extractors
 from sourced.ml.utils import add_engine_args, add_spark_args
 from sourced.ml.cmd import ArgumentDefaultsHelpFormatterNoNone
 from sourced.ml.cmd.args import add_bow_args, add_feature_args, add_repo2_args, \
-    add_df_args, add_repartitioner_arg
-from sourced.ml.transformers import Moder
+    add_df_args, add_repartitioner_arg, add_dzhigurda_arg
 
-
-from apollo.bags import preprocess_source, source2bags
+from apollo.bags import source2bags
 from apollo.cassandra_utils import reset_db
 from apollo.graph import find_connected_components, dumpcc, detect_communities, dumpcmd, \
     evaluate_communities
@@ -70,11 +68,6 @@ def get_parser() -> argparse.ArgumentParser:
         my_parser.add_argument("--template", default=default_template,
                                help="Jinja2 template to render.")
 
-    def add_dzhigurda_arg(my_parser):
-        my_parser.add_argument(
-            "--dzhigurda", default=0, type=int,
-            help="Index of the examined commit in the history.")
-
     # Create and construct subparsers
     subparsers = parser.add_subparsers(help="Commands", dest="command")
 
@@ -91,22 +84,6 @@ def get_parser() -> argparse.ArgumentParser:
     db_parser.add_argument(
         "--hashes-only", action="store_true",
         help="Only clear the tables: hashes, hashtables, hashtables2. Do not touch the rest.")
-
-    # ------------------------------------------------------------------------
-    preprocessing_parser = subparsers.add_parser(
-        "preprocess", help="Generate the dataset with good candidates for duplication.")
-    preprocessing_parser.set_defaults(handler=preprocess_source)
-    preprocessing_parser.add_argument("-x", "--mode", choices=Moder.Options.__all__,
-                                      default="file", help="What to select for analysis.")
-    add_repo2_args(preprocessing_parser)
-    add_dzhigurda_arg(preprocessing_parser)
-    preprocessing_parser.add_argument(
-        "-o", "--output", required=True,
-        help="[OUT] Path to the Parquet files with bag batches.")
-    default_fields = ["blob_id", "repository_id", "content", "path", "commit_hash", "uast"]
-    preprocessing_parser.add_argument(
-        "-f", "--fields", action="append", default=default_fields,
-        help="Fields to select from DF to save.")
 
     # ------------------------------------------------------------------------
     source2bags_parser = subparsers.add_parser(
