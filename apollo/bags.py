@@ -1,5 +1,5 @@
 from pyspark.sql.types import Row
-from sourced.ml.cmd.repos2bow import repos2bow_entry_template
+from sourced.ml.cmd import repos2bow_template
 from sourced.ml.transformers import Transformer, DzhigurdaFiles
 
 from apollo import cassandra_utils
@@ -47,7 +47,7 @@ class MetadataSaver(Transformer):
 
 def source2bags(args):
     cassandra_utils.configure(args)
-    return repos2bow_entry_template(
+    return repos2bow_template(
         args,
         select=lambda: DzhigurdaFiles(args.dzhigurda),
         cache_hook=lambda: MetadataSaver(args.keyspace, args.tables["meta"]),
