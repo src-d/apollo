@@ -1,6 +1,5 @@
 _book
 bundle
-*.asdf
 
 #Mac OS
 *.DS_Store

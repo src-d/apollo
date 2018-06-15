@@ -13,7 +13,7 @@ _install: &_install
   - gimme 1.8
   - source ~/.gimme/envs/latest.env
   - pip install --upgrade pip
-  - pip install codecov
+  - pip install -r requirements.txt codecov
   - pip install -e .
 _coverage: &_coverage
   - SCRIPT="coverage run --concurrency=multiprocessing -m unittest discover && coverage combine"
@@ -38,6 +38,7 @@ before_script:
   - docker run -d --privileged -p 9432:9432 --name bblfshd bblfsh/bblfshd
   - docker exec -it bblfshd bblfshctl driver install python bblfsh/python-driver
   - docker run --name scylla -p 9042:9042 -d scylladb/scylla --developer-mode=1
+  - sleep 90
 script:
   - (eval "$SCRIPT")
 notifications:
