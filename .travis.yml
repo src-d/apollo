@@ -9,7 +9,7 @@ _install: &_install
   - gimme 1.8
   - source ~/.gimme/envs/latest.env
   - pip install --upgrade pip
-  - pip install -r requirements.txt codecov
+  - pip install codecov
   - pip install -e .
 _coverage: &_coverage
   - SCRIPT="coverage run --concurrency=multiprocessing -m unittest discover && coverage combine"
