@@ -1,5 +1,5 @@
-cassandra_driver >= 3.12.0, <4.0
-libMHCUDA >= 2.0, <3.0
-python-igraph >= 0.7, <2.0
-jinja2 >=2.0, <3.0
-sourced-ml >= 0.4.4, <0.5
+cassandra_driver==3.14.0
+libMHCUDA==2.1.0
+python-igraph==0.7.1.post6
+jinja2==2.10
+sourced-ml==0.5.0
