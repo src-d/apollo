@@ -100,7 +100,6 @@ class HashExploder:
 
 
 def modify_feature_weights(batches, arguments, **kwargs):
-    log = logging.getLogger("hash")
     extractors = {}
     for ex in __extractors__.values():
         if "%s_weight" % ex.NAME in dir(arguments) and \
