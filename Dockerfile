@@ -17,7 +17,7 @@ RUN apt-get update && \
         libsnappy1v5 libsnappy-dev libonig2 make gcc g++ curl openjdk-8-jre && \
     curl https://bootstrap.pypa.io/get-pip.py | python3 && \
     pip3 install --no-cache-dir PyStemmer bblfsh py4j==0.10.4 modelforge parquet jinja2 libMHCUDA datasketch cassandra_driver python-igraph numpy humanize pygments && \
-    apt-get remove -y python3-dev libxml2-dev libsnappy-dev zlib1g-dev make gcc g++ curl && \
+    apt-get remove -y python3-dev libxml2-dev libsnappy-dev zlib1g-dev make gcc g++ && \
     apt-get remove -y *-doc *-man >/dev/null && \
     apt-get autoremove -y && \
     apt-get clean && \
