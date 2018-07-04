@@ -55,6 +55,5 @@ def source2bags(args):
     cassandra_utils.configure(args)
     return repos2bow_template(
         args,
-        select=lambda: DzhigurdaFiles(args.dzhigurda),
         cache_hook=lambda: MetadataSaver(args.keyspace, args.tables["meta"]),
         save_hook=lambda: BagsSaver(args.keyspace, args.tables["bags"]))

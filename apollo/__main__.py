@@ -100,7 +100,6 @@ def get_parser() -> argparse.ArgumentParser:
         "bags", help="Convert source code to weighted sets.")
     source2bags_parser.set_defaults(handler=source2bags)
     add_bow_args(source2bags_parser)
-    add_dzhigurda_arg(source2bags_parser)
     add_repo2_args(source2bags_parser, default_packages=[CASSANDRA_PACKAGE])
     add_feature_args(source2bags_parser)
     add_cassandra_args(source2bags_parser)
