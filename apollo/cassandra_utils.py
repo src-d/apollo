@@ -127,7 +127,7 @@ class BatchedHashResolver:
         rows = self.session.execute(query)
         buffer = self.buffer
         buffer.extend(None for _ in items)
-        l = len(items)
+        l = len(items)  # noqa
         count = 0
         for r in rows:
             count += 1
@@ -178,5 +178,6 @@ class ColorFormatter(logging.Formatter):
                   "m" + spice + "%(levelname)s\033[0m:%(name)s:\033[" + text_color + \
                   "m%(message)s\033[0m"
         return fmt % record.__dict__
+
 
 modelforge.logs.ColorFormatter = ColorFormatter
