@@ -1,5 +1,5 @@
 from pyspark.sql.types import Row
-from sourced.ml.cmd import repos2bow_template
+from sourced.ml.cmd import repos2bow_template, repos2bow_index_template
 from sourced.ml.transformers import Transformer, DzhigurdaFiles
 
 from apollo import cassandra_utils
@@ -43,6 +43,12 @@ class MetadataSaver(Transformer):
             .mode("append") \
             .options(table=self.table, keyspace=self.keyspace) \
             .save()
+
+
+def preprocess(args):
+    return repos2bow_index_template(
+        args,
+        select=lambda: DzhigurdaFiles(args.dzhigurda))
 
 
 def source2bags(args):
