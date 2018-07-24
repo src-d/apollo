@@ -13,6 +13,7 @@ import numpy
 from pyspark.sql.types import Row
 from scipy.sparse import csr_matrix
 from sourced.ml.utils import create_spark
+from sourced.ml.extractors.helpers import filter_kwargs
 
 from apollo.cassandra_utils import get_db, patch_tables, BatchedHashResolver, Session
 from apollo.query import weighted_jaccard, stream_template
@@ -251,7 +252,8 @@ def detect_communities(args):
     log.info("Launching the community detection")
     detector = CommunityDetector(algorithm=args.algorithm, config=args.params)
     if not args.no_spark:
-        spark = create_spark("cmd-%s" % uuid4(), **args.__dict__).sparkContext
+        spark = create_spark(
+            "cmd-%s" % uuid4(), **filter_kwargs(args.__dict__, create_spark)).sparkContext
         communities.extend(spark.parallelize(graphs).flatMap(detector).collect())
     else:
         communities.extend(chain.from_iterable(progress_bar(
@@ -376,7 +378,7 @@ def evaluate_communities(args):
     log = logging.getLogger("evalcc")
     model = CommunitiesModel().load(args.input)
     patch_tables(args)
-    spark = create_spark("evalcc-%s" % uuid4(), **args.__dict__)
+    spark = create_spark("evalcc-%s" % uuid4(), **filter_kwargs(args.__dict__, create_spark))
     log.info("Preparing the communities' RDD")
     items = []
     for i, c in progress_bar(enumerate(model.communities), log,
