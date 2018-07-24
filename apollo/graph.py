@@ -15,7 +15,7 @@ from scipy.sparse import csr_matrix
 from sourced.ml.utils import create_spark
 from sourced.ml.extractors.helpers import filter_kwargs
 
-from apollo.cassandra_utils import get_db, patch_tables, BatchedHashResolver, Session
+from apollo.cassandra_utils import get_db, configure, BatchedHashResolver, Session
 from apollo.query import weighted_jaccard, stream_template
 
 
@@ -377,7 +377,7 @@ class CommunityEvaluator:
 def evaluate_communities(args):
     log = logging.getLogger("evalcc")
     model = CommunitiesModel().load(args.input)
-    patch_tables(args)
+    configure(args)
     spark = create_spark("evalcc-%s" % uuid4(), **filter_kwargs(args.__dict__, create_spark))
     log.info("Preparing the communities' RDD")
     items = []
