@@ -6,10 +6,8 @@ from unittest.mock import patch
 import tempfile
 
 import numpy
-from scipy.sparse import csr_matrix
 from sourced.ml.models import OrderedDocumentFrequencies
 # from sourced.ml.transformers import BagsBatch
-from sourced.ml.extractors import __extractors__
 import sourced
 
 
@@ -65,7 +63,7 @@ class FeatureWeightTest(unittest.TestCase):
         self.tmp_file.close()
         try:
             os.remove(self.tmp_file.name)
-        except:
+        except OSError:
             pass
 
     def test_empty_extractors(self):
@@ -111,7 +109,7 @@ class FeatureWeightTest(unittest.TestCase):
         no_file.close()
         try:
             os.remove(no_file.name)
-        except:
+        except OSError:
             pass
 
         no_docfreq = {"docfreq": no_file.name}

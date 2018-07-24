@@ -73,16 +73,16 @@ def reset_db(args):
     if not args.hashes_only:
         cql("CREATE TABLE %s (sha1 ascii, item ascii, value float, PRIMARY KEY (sha1, item))"
             % tables["bags"])
-        cql("CREATE TABLE %s (sha1 ascii, repo text, commit ascii, path text, "
+        cql("CREATE TABLE %s (sha1 varchar, repo varchar, commit ascii, path varchar, "
             "PRIMARY KEY (sha1, repo, commit, path))" % tables["meta"])
     else:
         cql("DROP TABLE IF EXISTS %s" % tables["hashes"])
         cql("DROP TABLE IF EXISTS %s" % tables["hashtables"])
         cql("DROP TABLE IF EXISTS %s" % tables["hashtables2"])
-    cql("CREATE TABLE %s (sha1 ascii, value blob, PRIMARY KEY (sha1))" % tables["hashes"])
-    cql("CREATE TABLE %s (sha1 ascii, hashtable tinyint, value blob, "
+    cql("CREATE TABLE %s (sha1 varchar, value blob, PRIMARY KEY (sha1))" % tables["hashes"])
+    cql("CREATE TABLE %s (sha1 varchar, hashtable tinyint, value blob, "
         "PRIMARY KEY (hashtable, value, sha1))" % tables["hashtables"])
-    cql("CREATE TABLE %s (sha1 ascii, hashtable tinyint, value blob, "
+    cql("CREATE TABLE %s (sha1 varchar, hashtable tinyint, value blob, "
         "PRIMARY KEY (sha1, hashtable))" % tables["hashtables2"])
 
 
@@ -127,7 +127,7 @@ class BatchedHashResolver:
         rows = self.session.execute(query)
         buffer = self.buffer
         buffer.extend(None for _ in items)
-        l = len(items)
+        l = len(items)  # noqa
         count = 0
         for r in rows:
             count += 1
@@ -178,5 +178,6 @@ class ColorFormatter(logging.Formatter):
                   "m" + spice + "%(levelname)s\033[0m:%(name)s:\033[" + text_color + \
                   "m%(message)s\033[0m"
         return fmt % record.__dict__
+
 
 modelforge.logs.ColorFormatter = ColorFormatter

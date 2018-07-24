@@ -12,7 +12,7 @@ from sourced.ml.cmd import ArgumentDefaultsHelpFormatterNoNone
 from sourced.ml.cmd.args import add_bow_args, add_feature_args, add_repo2_args, \
     add_df_args, add_repartitioner_arg, add_dzhigurda_arg
 
-from apollo.bags import source2bags
+from apollo.bags import preprocess, source2bags
 from apollo.cassandra_utils import reset_db
 from apollo.graph import find_connected_components, dumpcc, detect_communities, dumpcmd, \
     evaluate_communities
@@ -84,7 +84,17 @@ def get_parser() -> argparse.ArgumentParser:
     db_parser.add_argument(
         "--hashes-only", action="store_true",
         help="Only clear the tables: hashes, hashtables, hashtables2. Do not touch the rest.")
-
+    # ------------------------------------------------------------------------
+    preprocess_parser = subparsers.add_parser(
+        "preprocess", help="Creates the index, quant and docfreq model of the bag-of-words model.")
+    preprocess_parser.set_defaults(handler=preprocess)
+    add_df_args(preprocess_parser)
+    add_repo2_args(preprocess_parser)
+    add_feature_args(preprocess_parser)
+    add_repartitioner_arg(preprocess_parser)
+    preprocess_parser.add_argument(
+        "--cached-index-path", default=None,
+        help="[OUT] Path to the docfreq model holding the document's index.")
     # ------------------------------------------------------------------------
     source2bags_parser = subparsers.add_parser(
         "bags", help="Convert source code to weighted sets.")
@@ -96,6 +106,9 @@ def get_parser() -> argparse.ArgumentParser:
     add_cassandra_args(source2bags_parser)
     add_df_args(source2bags_parser)
     add_repartitioner_arg(source2bags_parser)
+    source2bags_parser.add_argument(
+        "--cached-index-path", default=None,
+        help="[IN] Path to the docfreq model holding the document's index.")
 
     # ------------------------------------------------------------------------
     hash_parser = subparsers.add_parser(
