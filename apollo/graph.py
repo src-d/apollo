@@ -185,6 +185,9 @@ class CommunitiesModel(Model):
             indptr[i + 1] = pos
         return {"data": data, "indptr": indptr, "elements": merge_strings(self.id_to_element)}
 
+    def dump(self):
+        return "Number of communities: %s" % (len(self.communities))
+
     def count_elements(self):
         return sum(sum(1 for i in c if i < len(self.id_to_element)) for c in self.communities)
 
