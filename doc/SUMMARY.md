@@ -18,3 +18,7 @@
   * [cmd](cmd/cmd.md)
   * [dumpcmd](cmd/dumpcmd.md)
   * [evalcc](cmd/evalcc.md)
+ * Models reference
+  * [Weighted MinHash parameters](model/wmh.md)
+  * [Connected components](model/cc.md)
+  * [Communities](model/cmd.md)
