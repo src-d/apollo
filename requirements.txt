@@ -2,4 +2,4 @@ cassandra_driver==3.14.0
 libMHCUDA==2.1.0
 python-igraph==0.7.1.post6
 jinja2==2.10
-sourced-ml==0.5.0
+sourced-ml==0.6.0
