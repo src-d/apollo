@@ -2,7 +2,9 @@
 
 __Currently does not work in Spark Cluster mode.__
 
-This command runs the community detection on a Connected Components model, you can specify the following arguments:
+This command runs the community detection on a previously created Connected Components 
+model, and saves them in CCs in [this `Model`](/doc/model/cmd.md). You can specify 
+the following arguments:
 
 - `-i`/`--input`: Path to the input Connected Components model
 - `-o`/`--output`: Path to the output Community Detection model

@@ -2,7 +2,9 @@
 
 __Currently does not work in Spark Cluster mode.__
 
-This command applies the MinHashCUDA algorithm on previously written batches, stores hashes and hash tables in DB and saves the Weighted MinHash (WMH) parameters.
+This command applies the MinHashCUDA algorithm on previously written batches, 
+stores hashes and hash tables in DB and saves the Weighted MinHash (WMH) parameters
+in [this `Model`](/doc/model/wmh.md). You can specify the following arguments:
 
 - `-i`/`--input`: Path to the input batch(es)
 - `--seed`: Specific random generator (useful for cross execution comparisons), default to a random number depending of the time
