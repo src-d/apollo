@@ -2,10 +2,15 @@ from glob import glob
 from os import path
 from setuptools import setup, find_packages
 
+with open(path.join(path.dirname(__file__), "README.md"), encoding="utf-8") as f:
+    long_description = f.read()
+
 setup(
     name="apollo",
     description="source{d} Gemini's evil twin which runs everything using Python.",
-    version="0.1.0",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    version="0.1.1",
     license="Apache 2.0",
     author="source{d}",
     author_email="machine-learning@sourced.tech",
