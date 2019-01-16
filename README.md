@@ -1,7 +1,7 @@
 Apollo
 ======
 
-Advanced code deduplicator from hell. Powered by [source\{d\} ML](https://github.com/src-d/ml),
+Advanced code deduplicator. Powered by [source\{d\} ML](https://github.com/src-d/ml),
 [source\{d\} engine](https://github.com/src-d/engine) and [minhashcuda](https://github.com/src-d/minhashcuda).
 Agnostic to the analysed language thanks to [Babelfish](https://doc.bblf.sh). Python 3, PySpark, CUDA inside.
 
