@@ -8,9 +8,8 @@ from igraph import Graph
 from modelforge.logs import setup_logging
 from sourced.ml import extractors
 from sourced.ml.utils import add_engine_args, add_spark_args
-from sourced.ml.cmd import ArgumentDefaultsHelpFormatterNoNone
 from sourced.ml.cmd.args import add_bow_args, add_feature_args, add_repo2_args, \
-    add_df_args, add_repartitioner_arg
+    add_df_args, add_repartitioner_arg, ArgumentDefaultsHelpFormatterNoNone
 
 from apollo.bags import preprocess, source2bags
 from apollo.cassandra_utils import reset_db

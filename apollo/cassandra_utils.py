@@ -127,7 +127,7 @@ class BatchedHashResolver:
         rows = self.session.execute(query)
         buffer = self.buffer
         buffer.extend(None for _ in items)
-        l = len(items)  # noqa
+        num_items = len(items)
         count = 0
         for r in rows:
             count += 1
@@ -138,7 +138,7 @@ class BatchedHashResolver:
                 m = None
             # reverse order - we will pop() in __next__
             tr = r.sha1, (r.repo, r.commit, r.path)
-            buffer[l - i - 1] = (tr + (m,)) if meta else tr
+            buffer[num_items - i - 1] = (tr + (m,)) if meta else tr
         self._log.debug("-> %d", count)
 
 

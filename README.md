@@ -55,6 +55,8 @@ Apollo is structured as a series of commands in CLI. It stores data in [Cassandr
 writes MinHashCuda batches on disk. Community detection is delegated to [igraph](http://igraph.org/python/).
 
 * `resetdb` (erases) and initializes a Cassandra keyspace.
+* `preprocess` creates indexes for the files and features, and stores them on disk.
+Runs source{d} engine through PySpark.
 * `bags` extracts the features, stores them in the database and writes MinHashCuda batches on disk.
 Runs source{d} engine through PySpark.
 * `hash` performs the hashing, writes the hashtables to the database and hashing parameters on disk
@@ -94,13 +96,23 @@ in your browser. There multiple Docker options available, e.g.
 
 ## Docker command snippets
 
+### Preprocess
+
+```
+docker run -it --rm -v /path/to/io:/io --link bblfshd srcd/apollo preprocess -r /io/siva \
+--cached-index-path /io/bags/index.asdf --docfreq-out /io/bags/docfreq.asdf -f id lit uast2seq --uast2seq-seq-len 4 \
+-l Java Python -s 'local[*]' --min-docfreq 5 --bblfsh bblfshd --persist MEMORY_ONLY \
+--config spark.executor.memory=4G spark.driver.memory=10G spark.driver.maxResultSize=4G
+```
+
 ### Bags
 
 ```
 docker run -it --rm -v /path/to/io:/io --link bblfshd --link scylla srcd/apollo bags -r /io/siva \
---bow /io/bags/bow.asdf --docfreq /io/bags/docfreq.asdf -f id lit uast2seq --uast2seq-seq-len 4 \
--l Java Python -s 'local[*]' --min-docfreq 5 --bblfsh bblfshd --cassandra scylla --persist MEMORY_ONLY \
---config spark.executor.memory=4G spark.driver.memory=10G spark.driver.maxResultSize=4G
+--bow /io/bags/bow.asdf --cached-index-path /io/bags/index.asdf --docfreq-in /io/bags/docfreq.asdf \
+-f id lit uast2seq --uast2seq-seq-len 4 -l Java Python -s 'local[*]' --min-docfreq 5 --bblfsh bblfshd \
+--cassandra scylla --persist MEMORY_ONLY --config spark.executor.memory=4G \
+spark.driver.memory=10G spark.driver.maxResultSize=4G
 ```
 
 ### Hash
